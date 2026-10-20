@@ -1,0 +1,2210 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root { color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
+body { margin: 0; font: 14px system-ui, sans-serif; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<title>Ruutuvihko Sudoku</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#e9edf3">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lexend:wght@300;400;500;600&display=swap">
+<style>
+/* Layout: one-screen notebook app. Phone: board on top, mode row + keypad below. Wide: board left, controls right.
+   Printed givens in ink, player's digits in fountain-pen blue, selection as a highlighter stroke. */
+:root {
+  --bg: #e8ecf2;
+  --paper: #fbfcfe;
+  --ink: #131b29;
+  --muted: #5b6678;
+  --line: #cfd6e0;
+  --surface: #f5f7fa;
+  --surface-2: #dde3ec;
+  --grid: #b4bdca;
+  --grid-strong: #253043;
+  --pen: #1f45b2;
+  --pencil: #36579f;
+  --accent: #1f45b2;
+  --accent-ink: #ffffff;
+  --sel: rgba(255, 193, 7, 0.36);
+  --sel-edge: #e2a100;
+  --hl-same: rgba(31, 69, 178, 0.13);
+  --hl-peer: rgba(19, 27, 41, 0.055);
+  --hl-unit: rgba(15, 138, 95, 0.11);
+  --err: #c5322a;
+  --on: #0d8a5d;
+  --off: #cf4f3b;
+  --shadow: 0 1px 0 rgba(19, 27, 41, 0.06), 0 6px 18px rgba(19, 27, 41, 0.08);
+  --c1: #c7ced8; --c2: #f3a59d; --c3: #f6c387; --c4: #f2e27e; --c5: #a6da9d;
+  --c6: #8fd0d4; --c7: #9db6f0; --c8: #c3a7ea; --c9: #f0abd1;
+  --font-digit: 'Lexend', 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-ui: 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --key-h: clamp(44px, 7.2dvh, 64px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10141b; --paper: #181e27; --ink: #e7ecf3; --muted: #93a0b3; --line: #2b3442;
+    --surface: #1d2430; --surface-2: #283141; --grid: #374152; --grid-strong: #8d99ab;
+    --pen: #8eb0ff; --pencil: #93abe6; --accent: #7fa3ff; --accent-ink: #0c1220;
+    --sel: rgba(255, 190, 40, 0.24); --sel-edge: #f2bd3a;
+    --hl-same: rgba(142, 176, 255, 0.16); --hl-peer: rgba(231, 236, 243, 0.05); --hl-unit: rgba(52, 199, 138, 0.13);
+    --err: #ff7a6e; --on: #43d19a; --off: #ff8a72;
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.35);
+    --c1: #4a5363; --c2: #86403a; --c3: #8a5a2b; --c4: #7a6c24; --c5: #2f6a3b;
+    --c6: #22666a; --c7: #344f8e; --c8: #5a4489; --c9: #823f69;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10141b; --paper: #181e27; --ink: #e7ecf3; --muted: #93a0b3; --line: #2b3442;
+  --surface: #1d2430; --surface-2: #283141; --grid: #374152; --grid-strong: #8d99ab;
+  --pen: #8eb0ff; --pencil: #93abe6; --accent: #7fa3ff; --accent-ink: #0c1220;
+  --sel: rgba(255, 190, 40, 0.24); --sel-edge: #f2bd3a;
+  --hl-same: rgba(142, 176, 255, 0.16); --hl-peer: rgba(231, 236, 243, 0.05); --hl-unit: rgba(52, 199, 138, 0.13);
+  --err: #ff7a6e; --on: #43d19a; --off: #ff8a72;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.35);
+  --c1: #4a5363; --c2: #86403a; --c3: #8a5a2b; --c4: #7a6c24; --c5: #2f6a3b;
+  --c6: #22666a; --c7: #344f8e; --c8: #5a4489; --c9: #823f69;
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+.app {
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-block: 10px 14px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  --board: max(260px, min(100vw - 32px, 100dvh - 378px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 620px));
+}
+
+/* ---------- top bar ---------- */
+.bar {
+  width: 100%;
+  max-width: max(var(--board), 360px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.status { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.status-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.1; }
+.level-name {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.timer { font-family: var(--font-digit); font-size: 22px; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.timer.off { visibility: hidden; }
+.icon-btn {
+  border: 0; background: transparent; border-radius: 10px; cursor: pointer;
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  min-width: 44px; height: 46px; padding: 0 6px; color: var(--ink);
+}
+.icon-btn:hover { background: var(--surface-2); }
+.icon-btn svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn span { font-size: 10.5px; color: var(--muted); letter-spacing: 0.02em; }
+.pause-btn { min-width: 36px; height: 36px; border: 1px solid var(--line); background: var(--surface); border-radius: 50%; }
+.pause-btn svg { width: 16px; height: 16px; }
+.actions { display: flex; gap: 2px; }
+
+/* ---------- play area ---------- */
+.play { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.board-wrap {
+  position: relative;
+  width: var(--board);
+  aspect-ratio: 1;
+  max-width: 100%;
+  flex: none;
+}
+#board {
+  display: block; width: 100%; height: 100%;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  outline: none;
+}
+.board-cover {
+  position: absolute; inset: 0; border-radius: 6px;
+  background: var(--paper);
+  display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center;
+  text-align: center; padding: 20px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+.board-cover h2 { margin: 0; font-family: var(--font-digit); font-weight: 400; font-size: 26px; }
+.board-cover p { margin: 0; color: var(--muted); }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--surface-2); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: absolute; left: 50%; top: 10px; transform: translateX(-50%);
+  background: var(--ink); color: var(--paper);
+  padding: 9px 14px; border-radius: 999px; font-size: 14px; white-space: nowrap; max-width: calc(100% - 20px);
+  overflow: hidden; text-overflow: ellipsis;
+  box-shadow: var(--shadow); pointer-events: none;
+}
+
+/* board svg classes */
+.paper { fill: var(--paper); }
+.g-thin { stroke: var(--grid); stroke-width: 1.6; }
+.g-thick { stroke: var(--grid-strong); stroke-width: 4; fill: none; }
+.g-frame { stroke: var(--grid-strong); stroke-width: 6; fill: none; }
+.given { fill: var(--ink); font-family: var(--font-digit); font-weight: 500; font-size: 60px; }
+.val { fill: var(--pen); font-family: var(--font-digit); font-weight: 400; font-size: 60px; }
+.d-err { fill: var(--err); }
+.mk { fill: var(--pencil); font-family: var(--font-digit); font-weight: 400; }
+.mk-hl { fill: var(--accent); font-weight: 600; }
+.sel-fill { fill: var(--sel); }
+.sel-edge { stroke: var(--sel-edge); stroke-width: 5; fill: none; stroke-linecap: round; }
+.h-same { fill: var(--hl-same); }
+.h-peer { fill: var(--hl-peer); }
+.h-unit { fill: var(--hl-unit); }
+.h-cell { fill: none; stroke: var(--on); stroke-width: 4; stroke-dasharray: 10 6; }
+.wrong-ring { fill: none; stroke: var(--err); stroke-width: 5; }
+.col1 { fill: var(--c1); } .col2 { fill: var(--c2); } .col3 { fill: var(--c3); }
+.col4 { fill: var(--c4); } .col5 { fill: var(--c5); } .col6 { fill: var(--c6); }
+.col7 { fill: var(--c7); } .col8 { fill: var(--c8); } .col9 { fill: var(--c9); }
+.nd { stroke-width: 3; fill: var(--paper); }
+.nd-plain { stroke: var(--on); }
+.nd-on { stroke: var(--on); fill: var(--on); }
+.nd-off { stroke: var(--off); }
+.nd-elim { stroke: var(--err); }
+.nd-t { font-family: var(--font-digit); font-size: 21px; font-weight: 600; fill: var(--ink); }
+.nd-t-on { fill: var(--paper); }
+.nd-x { stroke: var(--err); stroke-width: 3.5; stroke-linecap: round; }
+.ghost { fill: var(--on); font-family: var(--font-digit); font-size: 60px; font-weight: 400; opacity: 0.85; }
+.blocker { fill: none; stroke: var(--accent); stroke-width: 4; }
+.link-s { stroke: var(--on); stroke-width: 3.5; fill: none; stroke-linecap: round; }
+.link-w { stroke: var(--off); stroke-width: 3; fill: none; stroke-dasharray: 7 7; stroke-linecap: round; }
+
+/* ---------- controls ---------- */
+.controls {
+  position: relative;
+  width: var(--board);
+  max-width: 100%;
+  min-width: min(100%, 340px);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.modes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.mode {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 10px; cursor: pointer;
+  height: 44px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 4px;
+  font-size: 14px;
+}
+.mode svg { width: 22px; height: 22px; flex: none; }
+.mode .mi-box { fill: none; stroke: currentColor; stroke-width: 1.5; opacity: 0.6; }
+.mode .mi-t { fill: currentColor; font-family: var(--font-digit); }
+.mode[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pad { display: grid; grid-template-columns: repeat(3, 1fr) 1.15fr; gap: 7px; }
+.key {
+  position: relative;
+  height: var(--key-h);
+  border: 1px solid var(--line); background: var(--paper); border-radius: 10px; cursor: pointer;
+  font-family: var(--font-digit); font-size: 28px; font-weight: 400; color: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 0 var(--line);
+  transition: transform 0.06s ease;
+}
+.key:active, .mode:active, .side-btn:active { transform: translateY(1px); }
+.key.done { color: var(--muted); opacity: 0.45; }
+.key .k-corner { position: absolute; left: 9px; top: 5px; font-size: 17px; }
+.key .k-centre { font-size: 17px; }
+.key .sw { width: 62%; height: 62%; border-radius: 8px; border: 1px solid var(--line); }
+.key .sw-n { position: absolute; right: 7px; bottom: 3px; font-size: 11px; color: var(--muted); font-family: var(--font-ui); }
+.side { grid-column: 4; grid-row: 1 / span 3; display: grid; grid-template-rows: repeat(3, 1fr); gap: 7px; }
+.side-btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 14px; padding: 0 6px;
+}
+.side-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.side-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* hint panel */
+.hint {
+  position: absolute; top: -2px; left: -2px; right: -2px; min-height: calc(100% + 4px);
+  background: var(--paper); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; overflow: hidden; z-index: 3;
+}
+.hint-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 6px 14px; }
+.hint-title { font-family: var(--font-digit); font-size: 17px; font-weight: 500; min-width: 0; }
+.hint-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 2px; }
+.hint-body { flex: 1; overflow: auto; padding: 2px 14px 10px; line-height: 1.5; white-space: pre-line; min-height: 0; }
+.hint-body .notation { display: block; margin-top: 8px; font-family: var(--font-digit); font-size: 12.5px; color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+.hint-foot { display: flex; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.btn {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 10px; cursor: pointer;
+  height: 42px; padding: 0 14px; font-size: 14.5px; font-weight: 700;
+}
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.grow { flex: 1; }
+.btn.danger { color: var(--err); }
+.close-x { border: 0; background: transparent; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; flex: none; }
+.close-x:hover { background: var(--surface-2); }
+.close-x svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; }
+
+/* ---------- sheets ---------- */
+.scrim {
+  position: fixed; inset: 0; z-index: 20;
+  background: rgba(10, 14, 22, 0.42);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+}
+.sheet {
+  width: 100%; max-width: 520px; max-height: 88dvh; overflow: auto; box-sizing: border-box;
+  background: var(--paper); color: var(--ink);
+  border-radius: 18px 18px 0 0;
+  padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.2);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sheet h2 { margin: 0; font-family: var(--font-digit); font-weight: 500; font-size: 22px; text-wrap: balance; }
+.sheet h3 { margin: 4px 0 0; font-size: 12px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.levels { display: flex; flex-direction: column; gap: 8px; }
+.level-btn {
+  display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; text-align: left;
+  border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 12px; cursor: pointer;
+}
+.level-btn:hover { border-color: var(--accent); }
+.pips { display: grid; grid-template-columns: repeat(3, 8px); gap: 3px; }
+.pip { width: 8px; height: 8px; border-radius: 2px; background: var(--surface-2); }
+.pip.on { background: var(--accent); }
+.lv-name { font-weight: 700; font-size: 15.5px; display: block; }
+.lv-desc { color: var(--muted); font-size: 13px; display: block; margin-top: 2px; }
+.lv-stat { color: var(--muted); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+textarea {
+  width: 100%; box-sizing: border-box; min-height: 74px; resize: vertical;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px; padding: 10px;
+  font-family: var(--font-digit); font-size: 13px; letter-spacing: 0.04em;
+}
+.note { color: var(--muted); font-size: 13px; margin: 0; line-height: 1.45; }
+.note.err { color: var(--err); }
+details summary { cursor: pointer; font-weight: 700; padding: 6px 0; }
+.setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.setting:last-child { border-bottom: 0; }
+.setting label { flex: 1; cursor: pointer; }
+.setting small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.switch { appearance: none; -webkit-appearance: none; width: 44px; height: 26px; border-radius: 999px; background: var(--surface-2); position: relative; cursor: pointer; flex: none; margin: 0; border: 1px solid var(--line); }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--paper); box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: left 0.15s ease; }
+.switch:checked { background: var(--accent); border-color: var(--accent); }
+.switch:checked::after { left: 20px; }
+select { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; height: 36px; padding: 0 8px; font: inherit; }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13.5px; margin: 0; }
+.keys dt { font-family: var(--font-digit); font-size: 12.5px; white-space: nowrap; }
+.keys dd { margin: 0; color: var(--muted); }
+.win-time { font-family: var(--font-digit); font-size: 46px; font-weight: 300; font-variant-numeric: tabular-nums; margin: 0; }
+.win-meta { display: flex; gap: 18px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }
+.win-meta b { color: var(--ink); }
+
+/* ---------- wide screens ---------- */
+@media (min-width: 840px) and (orientation: landscape) {
+  .app { --board: max(300px, min(100dvh - 110px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 100vw - 460px, 760px)); padding-block: 16px; }
+  .bar { max-width: calc(var(--board) + 380px); }
+  .play { flex-direction: row; align-items: flex-start; justify-content: center; gap: 28px; }
+  .controls { width: 340px; min-width: 0; flex: none; }
+  .hint { position: static; margin-top: 4px; min-height: 220px; }
+  .scrim { align-items: center; }
+  .sheet { border-radius: 18px; }
+}
+@media (max-height: 640px) and (orientation: portrait) {
+  .icon-btn span { display: none; }
+  .icon-btn { height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation-duration: 0.01ms !important; }
+}
+</style>
+
+</head>
+<body>
+<div class="app" id="app">
+  <header class="bar">
+    <div class="status">
+      <button class="icon-btn pause-btn" id="btn-pause" aria-label="Tauko">
+        <svg viewBox="0 0 24 24" id="pause-icon"><path d="M8 5v14M16 5v14"/></svg>
+      </button>
+      <div class="status-text">
+        <span class="level-name" id="level-name">Keskitaso</span>
+        <span class="timer" id="timer">0:00</span>
+      </div>
+    </div>
+    <nav class="actions" aria-label="Toiminnot">
+      <button class="icon-btn" id="btn-hint" aria-label="Vihje">
+        <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2v.5h5V16c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/></svg>
+        <span>Vihje</span>
+      </button>
+      <button class="icon-btn" id="btn-check" aria-label="Tarkista">
+        <svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>
+        <span>Tarkista</span>
+      </button>
+      <button class="icon-btn" id="btn-new" aria-label="Uusi peli">
+        <svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17"/></svg>
+        <span>Uusi</span>
+      </button>
+      <button class="icon-btn" id="btn-settings" aria-label="Asetukset">
+        <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        <span>Asetukset</span>
+      </button>
+    </nav>
+  </header>
+
+  <main class="play">
+    <div class="board-wrap" id="board-wrap">
+      <svg id="board" viewBox="-8 -8 916 916" tabindex="0" role="grid" aria-label="Sudokuruudukko"></svg>
+      <div class="board-cover" id="cover" hidden></div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+
+    <section class="controls" id="controls" aria-label="Syöttö">
+      <div class="modes" role="radiogroup" aria-label="Syöttötila">
+        <button class="mode" role="radio" data-mode="normal" aria-checked="true" title="Numero (Z)">
+          <svg viewBox="0 0 24 24"><rect class="mi-box" x="1.5" y="1.5" width="21" height="21" rx="3"/><text class="mi-t" x="12" y="17.2" text-anchor="middle" font-size="15">5</text></svg>
+          <span>Numero</span>
+        </button>
+        <button class="mode" role="radio" data-mode="corner" aria-checked="false" title="Kulma (X tai Shift)">
+          <svg viewBox="0 0 24 24"><rect class="mi-box" x="1.5" y="1.5" width="21" height="21" rx="3"/><text class="mi-t" x="6.5" y="10" text-anchor="middle" font-size="8">1</text><text class="mi-t" x="17.5" y="10" text-anchor="middle" font-size="8">2</text><text class="mi-t" x="6.5" y="20" text-anchor="middle" font-size="8">5</text></svg>
+          <span>Kulma</span>
+        </button>
+        <button class="mode" role="radio" data-mode="centre" aria-checked="false" title="Keski (C tai Ctrl)">
+          <svg viewBox="0 0 24 24"><rect class="mi-box" x="1.5" y="1.5" width="21" height="21" rx="3"/><text class="mi-t" x="12" y="15" text-anchor="middle" font-size="8">127</text></svg>
+          <span>Keski</span>
+        </button>
+        <button class="mode" role="radio" data-mode="colour" aria-checked="false" title="Väri (V)">
+          <svg viewBox="0 0 24 24"><rect class="mi-box" x="1.5" y="1.5" width="21" height="21" rx="3"/><path d="M3 3h18L3 21z" style="fill: var(--c2)"/><path d="M21 3v18H3z" style="fill: var(--c7)"/></svg>
+          <span>Väri</span>
+        </button>
+      </div>
+      <div class="pad" id="pad">
+        <div class="side">
+          <button class="side-btn" id="btn-del" aria-label="Poista">
+            <svg viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>
+            <span>Poista</span>
+          </button>
+          <button class="side-btn" id="btn-undo" aria-label="Kumoa">
+            <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+            <span>Kumoa</span>
+          </button>
+          <button class="side-btn" id="btn-redo" aria-label="Tee uudelleen">
+            <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+            <span>Uudelleen</span>
+          </button>
+        </div>
+      </div>
+      <div class="hint" id="hint" hidden aria-live="polite"></div>
+    </section>
+  </main>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+
+<script id="engine-src">
+/* Sudoku engine: solver, human-style step finder, grader, generator. */
+(function (root) {
+  'use strict';
+
+  // ---------- geometry ----------
+  const ROW = new Int8Array(81), COL = new Int8Array(81), BOX = new Int8Array(81);
+  for (let i = 0; i < 81; i++) {
+    ROW[i] = (i / 9) | 0;
+    COL[i] = i % 9;
+    BOX[i] = ((ROW[i] / 3) | 0) * 3 + ((COL[i] / 3) | 0);
+  }
+  const UNITS = [];
+  for (let r = 0; r < 9; r++) { const u = []; for (let c = 0; c < 9; c++) u.push(r * 9 + c); UNITS.push(u); }
+  for (let c = 0; c < 9; c++) { const u = []; for (let r = 0; r < 9; r++) u.push(r * 9 + c); UNITS.push(u); }
+  for (let b = 0; b < 9; b++) {
+    const u = [], br = ((b / 3) | 0) * 3, bc = (b % 3) * 3;
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) u.push((br + r) * 9 + bc + c);
+    UNITS.push(u);
+  }
+  const CELL_UNITS = [];
+  for (let i = 0; i < 81; i++) CELL_UNITS.push([ROW[i], 9 + COL[i], 18 + BOX[i]]);
+  const PEERS = [];
+  const IS_PEER = new Uint8Array(81 * 81);
+  for (let i = 0; i < 81; i++) {
+    const p = [];
+    for (let j = 0; j < 81; j++) {
+      if (i !== j && (ROW[i] === ROW[j] || COL[i] === COL[j] || BOX[i] === BOX[j])) { p.push(j); IS_PEER[i * 81 + j] = 1; }
+    }
+    PEERS.push(p);
+  }
+  const POP = new Uint8Array(512), DIG = [];
+  for (let m = 0; m < 512; m++) {
+    const ds = [];
+    for (let d = 1; d <= 9; d++) if (m & (1 << (d - 1))) ds.push(d);
+    POP[m] = ds.length; DIG.push(ds);
+  }
+  const BIT = d => 1 << (d - 1);
+  const sees = (a, b) => IS_PEER[a * 81 + b] === 1;
+
+  // ---------- naming (Finnish) ----------
+  const cellName = i => 'R' + (ROW[i] + 1) + 'S' + (COL[i] + 1);
+  const cellList = cells => cells.map(cellName).join(', ');
+  function unitName(u, form) {
+    const n = (u % 9) + 1, t = (u / 9) | 0;
+    const F = [
+      { nom: 'rivi', gen: 'rivin', ine: 'rivillä', ela: 'riviltä', par: 'riviä' },
+      { nom: 'sarake', gen: 'sarakkeen', ine: 'sarakkeessa', ela: 'sarakkeesta', par: 'saraketta' },
+      { nom: 'laatikko', gen: 'laatikon', ine: 'laatikossa', ela: 'laatikosta', par: 'laatikkoa' }
+    ][t];
+    return F[form || 'nom'] + ' ' + n;
+  }
+  function joinList(arr) {
+    if (arr.length <= 1) return arr.join('');
+    return arr.slice(0, -1).join(', ') + ' ja ' + arr[arr.length - 1];
+  }
+
+  // ---------- RNG ----------
+  function rngFrom(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, rnd) {
+    for (let i = arr.length - 1; i > 0; i--) { const j = (rnd() * (i + 1)) | 0; const t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    return arr;
+  }
+
+  // ---------- brute-force solver ----------
+  function countSolutions(grid, limit, out, rnd) {
+    const g = Int8Array.from(grid);
+    const rows = new Uint16Array(9), cols = new Uint16Array(9), boxes = new Uint16Array(9);
+    for (let i = 0; i < 81; i++) {
+      const d = g[i];
+      if (d) {
+        const b = BIT(d);
+        if ((rows[ROW[i]] | cols[COL[i]] | boxes[BOX[i]]) & b) return 0;
+        rows[ROW[i]] |= b; cols[COL[i]] |= b; boxes[BOX[i]] |= b;
+      }
+    }
+    let count = 0;
+    function rec() {
+      let best = -1, bestMask = 0, bestN = 10;
+      for (let i = 0; i < 81; i++) {
+        if (g[i]) continue;
+        const m = ~(rows[ROW[i]] | cols[COL[i]] | boxes[BOX[i]]) & 511;
+        const n = POP[m];
+        if (n === 0) return;
+        if (n < bestN) { best = i; bestMask = m; bestN = n; if (n === 1) break; }
+      }
+      if (best < 0) {
+        count++;
+        if (out && count === 1) for (let i = 0; i < 81; i++) out[i] = g[i];
+        return;
+      }
+      let ds = DIG[bestMask];
+      if (rnd) ds = shuffle(ds.slice(), rnd);
+      const r = ROW[best], c = COL[best], bx = BOX[best];
+      for (const d of ds) {
+        const b = BIT(d);
+        g[best] = d; rows[r] |= b; cols[c] |= b; boxes[bx] |= b;
+        rec();
+        g[best] = 0; rows[r] &= ~b; cols[c] &= ~b; boxes[bx] &= ~b;
+        if (count >= limit) return;
+      }
+    }
+    rec();
+    return count;
+  }
+  function randomSolution(rnd) {
+    const out = new Int8Array(81);
+    countSolutions(new Int8Array(81), 1, out, rnd);
+    return out;
+  }
+
+  // ---------- candidate state ----------
+  function makeState(grid) {
+    const s = { grid: Int8Array.from(grid), cand: new Uint16Array(81) };
+    for (let i = 0; i < 81; i++) {
+      if (s.grid[i]) continue;
+      let m = 511;
+      for (const p of PEERS[i]) if (s.grid[p]) m &= ~BIT(s.grid[p]);
+      s.cand[i] = m;
+    }
+    return s;
+  }
+  function cloneState(s) { return { grid: Int8Array.from(s.grid), cand: Uint16Array.from(s.cand) }; }
+  function placeDigit(s, i, d) {
+    s.grid[i] = d; s.cand[i] = 0;
+    const b = ~BIT(d);
+    for (const p of PEERS[i]) s.cand[p] &= b;
+  }
+  function applyStep(s, step) {
+    if (step.place) placeDigit(s, step.place[0], step.place[1]);
+    if (step.elim) for (const [i, d] of step.elim) s.cand[i] &= ~BIT(d);
+  }
+  function isBroken(s) {
+    for (let i = 0; i < 81; i++) if (!s.grid[i] && !s.cand[i]) return true;
+    return false;
+  }
+  function isSolved(s) { for (let i = 0; i < 81; i++) if (!s.grid[i]) return false; return true; }
+
+  // positions of digit d in unit u (cells where d is a candidate)
+  function positions(s, u, d) {
+    const b = BIT(d), out = [];
+    for (const i of UNITS[u]) if (!s.grid[i] && (s.cand[i] & b)) out.push(i);
+    return out;
+  }
+  function unitHas(s, u, d) { for (const i of UNITS[u]) if (s.grid[i] === d) return true; return false; }
+  function commonUnits(cells) {
+    const res = [];
+    for (let u = 0; u < 27; u++) if (cells.every(c => CELL_UNITS[c].includes(u))) res.push(u);
+    return res;
+  }
+  function unitType(u) { return (u / 9) | 0; } // 0 row, 1 col, 2 box
+
+  // digits that a cell "sees" placed
+  function seenDigits(s, i) {
+    let m = 0;
+    for (const p of PEERS[i]) if (s.grid[p]) m |= BIT(s.grid[p]);
+    return m;
+  }
+
+  // ---------- techniques ----------
+  const T = {}; // registry: id -> {name, level, find}
+
+  function mk(id, name, level, extra) { return Object.assign({ tech: id, name: name, level: level, elim: [], hl: { cells: [], unit: [], cands: [], links: [] } }, extra || {}); }
+
+  // Full house
+  T.full_house = function (s) {
+    for (let u = 0; u < 27; u++) {
+      let empty = -1, n = 0, used = 0;
+      for (const i of UNITS[u]) { if (!s.grid[i]) { empty = i; n++; } else used |= BIT(s.grid[i]); }
+      if (n === 1) {
+        const d = DIG[~used & 511][0];
+        if (!(s.cand[empty] & BIT(d))) continue;
+        const st = mk('full_house', 'Viimeinen vapaa ruutu', 1, { place: [empty, d] });
+        st.hl.unit = UNITS[u].slice(); st.hl.cells = [empty];
+        st.nudge = 'Katso ' + unitName(u, 'par') + ' – siinä on vain yksi tyhjä ruutu.';
+        st.text = cellName(empty) + ' on ' + unitName(u, 'gen') + ' ainoa tyhjä ruutu. Siitä puuttuu vain numero ' + d + ', joten ' + cellName(empty) + ' = ' + d + '.';
+        return st;
+      }
+    }
+    return null;
+  };
+
+  function hiddenSingleIn(s, units, label) {
+    for (const u of units) {
+      for (let d = 1; d <= 9; d++) {
+        if (unitHas(s, u, d)) continue;
+        const pos = positions(s, u, d);
+        if (pos.length !== 1) continue;
+        const cell = pos[0];
+        const st = mk('hidden_single', 'Piilotettu sinkku', 1, { place: [cell, d] });
+        st.hl.unit = UNITS[u].slice();
+        st.hl.cells = [cell];
+        // blockers: placed d's that see empty cells of the unit
+        const blockers = [];
+        let allBySight = true;
+        for (const i of UNITS[u]) {
+          if (s.grid[i] || i === cell) continue;
+          let found = -1;
+          for (const p of PEERS[i]) if (s.grid[p] === d) { found = p; break; }
+          if (found >= 0) { if (!blockers.includes(found)) blockers.push(found); }
+          else allBySight = false;
+        }
+        st.hl.blockers = blockers;
+        st.hl.digit = d;
+        st.nudge = 'Katso numeroa ' + d + ' ' + unitName(u, 'ine') + '.';
+        st.text = unitName(u, 'nom').replace(/^./, c => c.toUpperCase()) + ': numero ' + d + ' mahtuu vain ruutuun ' + cellName(cell) + '. ' +
+          (allBySight
+            ? 'Kaikki muut tyhjät ruudut näkevät jo numeron ' + d + ' (korostetut ' + d + ':t) samalla rivillä, sarakkeessa tai laatikossa.'
+            : 'Muista ruuduista ' + d + ' on jo poissuljettu – osa näkee numeron ' + d + ', osa on karsittu aiemmilla päättelyillä.') +
+          ' Siis ' + cellName(cell) + ' = ' + d + '.';
+        return st;
+      }
+    }
+    return null;
+  }
+  T.hidden_single_box = s => hiddenSingleIn(s, [18, 19, 20, 21, 22, 23, 24, 25, 26]);
+  T.hidden_single_line = s => hiddenSingleIn(s, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+
+  T.naked_single = function (s) {
+    for (let i = 0; i < 81; i++) {
+      if (s.grid[i] || POP[s.cand[i]] !== 1) continue;
+      const d = DIG[s.cand[i]][0];
+      const st = mk('naked_single', 'Paljas sinkku', 1, { place: [i, d] });
+      st.hl.cells = [i];
+      st.hl.unit = PEERS[i].slice();
+      const seen = seenDigits(s, i);
+      st.nudge = 'Etsi ruutu, johon käy enää vain yksi numero.' + ' Katso ' + unitName(ROW[i], 'par') + '.';
+      if ((~seen & 511) === BIT(d)) {
+        st.text = 'Ruutu ' + cellName(i) + ' näkee jo numerot ' + DIG[seen].join(', ') + ' (rivillä, sarakkeessa ja laatikossa). Ainoa jäljelle jäävä numero on ' + d + ', joten ' + cellName(i) + ' = ' + d + '.';
+      } else {
+        st.text = 'Ruutuun ' + cellName(i) + ' käy enää vain numero ' + d + ': muut numerot ruutu joko näkee jo tai ne on karsittu aiemmilla päättelyillä. Siis ' + cellName(i) + ' = ' + d + '.';
+      }
+      return st;
+    }
+    return null;
+  };
+
+  // Locked candidates: pointing
+  T.pointing = function (s) {
+    for (let b = 0; b < 9; b++) {
+      const u = 18 + b;
+      for (let d = 1; d <= 9; d++) {
+        const pos = positions(s, u, d);
+        if (pos.length < 2 || pos.length > 3) continue;
+        for (const lineType of [0, 1]) {
+          const key = lineType === 0 ? ROW : COL;
+          if (!pos.every(p => key[p] === key[pos[0]])) continue;
+          const line = lineType === 0 ? ROW[pos[0]] : 9 + COL[pos[0]];
+          const elim = [];
+          for (const i of UNITS[line]) if (BOX[i] !== b && !s.grid[i] && (s.cand[i] & BIT(d))) elim.push([i, d]);
+          if (!elim.length) continue;
+          const st = mk('pointing', 'Lukittu ehdokas (osoittava)', 2, { elim });
+          st.hl.unit = UNITS[u].slice(); st.hl.cells = pos.slice(); st.hl.cands = pos.map(p => [p, d]); st.hl.digit = d;
+          st.nudge = 'Katso numeroa ' + d + ' ' + unitName(u, 'ine') + '.';
+          st.text = unitName(u, 'ine').replace(/^./, c => c.toUpperCase()) + ' numero ' + d + ' voi olla vain ruuduissa ' + cellList(pos) +
+            ', jotka ovat kaikki ' + unitName(line, 'ine') + '. Laatikon ' + d + ' on siis jossakin niistä, joten ' + d + ' ei voi olla ' +
+            unitName(line, 'gen') + ' muissa ruuduissa. Poistetaan ' + d + ' ruuduista ' + cellList(elim.map(e => e[0])) + '.';
+          return st;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Locked candidates: claiming (box-line reduction)
+  T.claiming = function (s) {
+    for (let u = 0; u < 18; u++) {
+      for (let d = 1; d <= 9; d++) {
+        const pos = positions(s, u, d);
+        if (pos.length < 2 || pos.length > 3) continue;
+        if (!pos.every(p => BOX[p] === BOX[pos[0]])) continue;
+        const b = BOX[pos[0]], bu = 18 + b;
+        const elim = [];
+        for (const i of UNITS[bu]) if (!pos.includes(i) && !s.grid[i] && (s.cand[i] & BIT(d)) && !UNITS[u].includes(i)) elim.push([i, d]);
+        if (!elim.length) continue;
+        const st = mk('claiming', 'Lukittu ehdokas (rivi/sarake → laatikko)', 2, { elim });
+        st.hl.unit = UNITS[u].slice(); st.hl.cells = pos.slice(); st.hl.cands = pos.map(p => [p, d]); st.hl.digit = d;
+        st.nudge = 'Katso numeroa ' + d + ' ' + unitName(u, 'ine') + '.';
+        st.text = unitName(u, 'ine').replace(/^./, c => c.toUpperCase()) + ' numero ' + d + ' voi olla vain ruuduissa ' + cellList(pos) +
+          ', jotka ovat kaikki ' + unitName(bu, 'ine') + '. ' + unitName(u, 'gen').replace(/^./, c => c.toUpperCase()) + ' ' + d + ' vie siis laatikon ' + d + ':n, joten ' +
+          unitName(bu, 'gen') + ' muissa ruuduissa ei voi olla ' + d + '. Poistetaan ' + d + ' ruuduista ' + cellList(elim.map(e => e[0])) + '.';
+        return st;
+      }
+    }
+    return null;
+  };
+
+  function combos(arr, k, start, cur, out) {
+    if (cur.length === k) { out.push(cur.slice()); return out; }
+    for (let i = start; i < arr.length; i++) { cur.push(arr[i]); combos(arr, k, i + 1, cur, out); cur.pop(); }
+    return out;
+  }
+  const SUBSET_NAMES = { 2: 'pari', 3: 'kolmikko', 4: 'nelikko' };
+  const SUBSET_LEVEL_NAKED = { 2: 2, 3: 2, 4: 3 };
+  const SUBSET_LEVEL_HIDDEN = { 2: 2, 3: 3, 4: 3 };
+
+  function nakedSubset(s, n) {
+    for (let u = 0; u < 27; u++) {
+      const cells = UNITS[u].filter(i => !s.grid[i] && POP[s.cand[i]] >= 2 && POP[s.cand[i]] <= n);
+      if (cells.length < n) continue;
+      const emptyCount = UNITS[u].filter(i => !s.grid[i]).length;
+      if (emptyCount <= n) continue;
+      for (const cs of combos(cells, n, 0, [], [])) {
+        let m = 0; for (const c of cs) m |= s.cand[c];
+        if (POP[m] !== n) continue;
+        const elim = [];
+        for (const i of UNITS[u]) {
+          if (s.grid[i] || cs.includes(i)) continue;
+          for (const d of DIG[s.cand[i] & m]) elim.push([i, d]);
+        }
+        if (!elim.length) continue;
+        const ds = DIG[m];
+        const st = mk('naked_' + n, 'Paljas ' + SUBSET_NAMES[n], SUBSET_LEVEL_NAKED[n], { elim });
+        st.hl.unit = UNITS[u].slice(); st.hl.cells = cs.slice();
+        st.hl.cands = []; for (const c of cs) for (const d of DIG[s.cand[c]]) st.hl.cands.push([c, d]);
+        st.nudge = 'Katso ' + unitName(u, 'par') + ' – ' + n + ' ruutua, joissa on yhteensä vain ' + n + ' eri ehdokasta.';
+        st.text = unitName(u, 'ine').replace(/^./, c => c.toUpperCase()) + ' ruuduissa ' + cellList(cs) + ' on yhteensä vain ehdokkaat ' + joinList(ds) +
+          '. Nämä ' + n + ' numeroa on pakko sijoittaa juuri näihin ' + n + ' ruutuun, joten ne eivät voi olla ' + unitName(u, 'gen') + ' muissa ruuduissa. Poistetaan: ' +
+          elim.map(e => e[1] + ' (' + cellName(e[0]) + ')').join(', ') + '.';
+        return st;
+      }
+    }
+    return null;
+  }
+  function hiddenSubset(s, n) {
+    for (let u = 0; u < 27; u++) {
+      const digs = [];
+      for (let d = 1; d <= 9; d++) {
+        if (unitHas(s, u, d)) continue;
+        const pc = positions(s, u, d).length;
+        if (pc >= 2 && pc <= n) digs.push(d);
+      }
+      if (digs.length < n) continue;
+      const emptyCount = UNITS[u].filter(i => !s.grid[i]).length;
+      if (emptyCount <= n) continue;
+      for (const ds of combos(digs, n, 0, [], [])) {
+        const cellSet = new Set();
+        for (const d of ds) for (const p of positions(s, u, d)) cellSet.add(p);
+        if (cellSet.size !== n) continue;
+        const cs = [...cellSet].sort((a, b) => a - b);
+        let dm = 0; for (const d of ds) dm |= BIT(d);
+        const elim = [];
+        for (const c of cs) for (const d of DIG[s.cand[c] & ~dm]) elim.push([c, d]);
+        if (!elim.length) continue;
+        const st = mk('hidden_' + n, 'Piilotettu ' + SUBSET_NAMES[n], SUBSET_LEVEL_HIDDEN[n], { elim });
+        st.hl.unit = UNITS[u].slice(); st.hl.cells = cs.slice();
+        st.hl.cands = []; for (const c of cs) for (const d of ds) if (s.cand[c] & BIT(d)) st.hl.cands.push([c, d]);
+        st.nudge = 'Katso ' + unitName(u, 'par') + ' – ' + n + ' numeroa, jotka mahtuvat vain ' + n + ' ruutuun.';
+        st.text = unitName(u, 'ine').replace(/^./, c => c.toUpperCase()) + ' numerot ' + joinList(ds) + ' voivat olla vain ruuduissa ' + cellList(cs) +
+          '. Koska ' + n + ' numeroa tarvitsee ' + n + ' ruutua, nämä ruudut on varattu niille, eikä niihin voi tulla muita numeroita. Poistetaan: ' +
+          elim.map(e => e[1] + ' (' + cellName(e[0]) + ')').join(', ') + '.';
+        return st;
+      }
+    }
+    return null;
+  }
+  T.naked_2 = s => nakedSubset(s, 2);
+  T.naked_3 = s => nakedSubset(s, 3);
+  T.naked_4 = s => nakedSubset(s, 4);
+  T.hidden_2 = s => hiddenSubset(s, 2);
+  T.hidden_3 = s => hiddenSubset(s, 3);
+  T.hidden_4 = s => hiddenSubset(s, 4);
+
+  // Basic fish
+  const FISH = { 2: ['X-Wing', 3], 3: ['Swordfish', 4], 4: ['Jellyfish', 4] };
+  function fish(s, n) {
+    for (let d = 1; d <= 9; d++) {
+      const b = BIT(d);
+      for (const orient of [0, 1]) {
+        const baseUnits = orient === 0 ? [0, 1, 2, 3, 4, 5, 6, 7, 8] : [9, 10, 11, 12, 13, 14, 15, 16, 17];
+        const cover = orient === 0 ? COL : ROW;
+        const cand = [];
+        const posMap = {};
+        for (const u of baseUnits) {
+          if (unitHas(s, u, d)) continue;
+          const p = positions(s, u, d);
+          if (p.length >= 2 && p.length <= n) { cand.push(u); posMap[u] = p; }
+        }
+        if (cand.length < n) continue;
+        for (const bs of combos(cand, n, 0, [], [])) {
+          let cm = 0;
+          for (const u of bs) for (const p of posMap[u]) cm |= 1 << cover[p];
+          if (POP[cm] !== n) continue;
+          const coverIdx = DIG[cm].map(x => x - 1);
+          const elim = [];
+          for (let i = 0; i < 81; i++) {
+            if (s.grid[i] || !(s.cand[i] & b)) continue;
+            if (!coverIdx.includes(cover[i])) continue;
+            const baseOfI = orient === 0 ? ROW[i] : 9 + COL[i];
+            if (bs.includes(baseOfI)) continue;
+            elim.push([i, d]);
+          }
+          if (!elim.length) continue;
+          const cells = []; for (const u of bs) for (const p of posMap[u]) cells.push(p);
+          const st = mk('fish_' + n, FISH[n][0], FISH[n][1], { elim });
+          st.hl.cells = cells; st.hl.cands = cells.map(c => [c, d]); st.hl.digit = d;
+          st.hl.unit = []; for (const u of bs) st.hl.unit.push(...UNITS[u]);
+          const baseWord = orient === 0 ? 'riveillä' : 'sarakkeissa';
+          const coverWord = orient === 0 ? 'sarakkeisiin' : 'riveille';
+          const coverGen = orient === 0 ? 'sarakkeiden' : 'rivien';
+          const bnums = bs.map(u => (u % 9) + 1), cnums = coverIdx.map(x => x + 1);
+          st.nudge = 'Katso numeroa ' + d + ' – ' + FISH[n][0] + '-kuvio.';
+          st.text = 'Numero ' + d + ': ' + baseWord + ' ' + joinList(bnums) + ' se voi olla vain ' + coverWord + ' ' + joinList(cnums) + ' osuvissa ruuduissa (' +
+            cellList(cells) + '). Jokaiselle näistä ' + n + ' ' + (orient === 0 ? 'rivistä' : 'sarakkeesta') + ' tarvitaan oma ' + d + ', ja ne kaikki osuvat samoihin ' + n + ' ' +
+            (orient === 0 ? 'sarakkeeseen' : 'riviin') + '. Siksi ' + coverGen + ' ' + joinList(cnums) + ' ' + d + ':t ovat varmasti näissä ruuduissa, eikä ' + d + ' voi olla muualla niissä. Poistetaan ' + d + ' ruuduista ' +
+            cellList(elim.map(e => e[0])) + '.';
+          return st;
+        }
+      }
+    }
+    return null;
+  }
+  T.fish_2 = s => fish(s, 2);
+  T.fish_3 = s => fish(s, 3);
+  T.fish_4 = s => fish(s, 4);
+
+  // XY-Wing
+  T.xy_wing = function (s) {
+    const bv = []; for (let i = 0; i < 81; i++) if (!s.grid[i] && POP[s.cand[i]] === 2) bv.push(i);
+    for (const p of bv) {
+      const [x, y] = DIG[s.cand[p]];
+      for (const a of bv) {
+        if (a === p || !sees(a, p)) continue;
+        const am = s.cand[a];
+        if (!(am & BIT(x)) || (am & BIT(y))) continue;
+        const z = DIG[am & ~BIT(x)][0];
+        for (const b of bv) {
+          if (b === p || b === a || !sees(b, p)) continue;
+          if (s.cand[b] !== (BIT(y) | BIT(z))) continue;
+          const elim = [];
+          for (let i = 0; i < 81; i++) {
+            if (i === a || i === b || i === p || s.grid[i] || !(s.cand[i] & BIT(z))) continue;
+            if (sees(i, a) && sees(i, b)) elim.push([i, z]);
+          }
+          if (!elim.length) continue;
+          const st = mk('xy_wing', 'XY-Wing', 3, { elim });
+          st.hl.cells = [p, a, b];
+          st.hl.cands = [[p, x], [p, y], [a, x], [a, z], [b, y], [b, z]];
+          st.hl.links = [[p, x, a, x, 'w'], [p, y, b, y, 'w']];
+          st.nudge = 'Etsi kolme kaksiehdokkaista ruutua (XY-Wing). Katso ruutua ' + cellName(p) + '.';
+          st.text = 'Sarana ' + cellName(p) + ' on joko ' + x + ' tai ' + y + '. Se näkee siivet ' + cellName(a) + ' (' + x + '/' + z + ') ja ' + cellName(b) + ' (' + y + '/' + z + '). ' +
+            'Jos sarana on ' + x + ', ' + cellName(a) + ' on ' + z + '. Jos sarana on ' + y + ', ' + cellName(b) + ' on ' + z + '. Kummassakin tapauksessa jompikumpi siivistä on ' + z +
+            ', joten ruutu, joka näkee molemmat siivet, ei voi olla ' + z + '. Poistetaan ' + z + ' ruuduista ' + cellList(elim.map(e => e[0])) + '.';
+          return st;
+        }
+      }
+    }
+    return null;
+  };
+
+  // XYZ-Wing
+  T.xyz_wing = function (s) {
+    for (let p = 0; p < 81; p++) {
+      if (s.grid[p] || POP[s.cand[p]] !== 3) continue;
+      const pm = s.cand[p];
+      const wings = PEERS[p].filter(i => !s.grid[i] && POP[s.cand[i]] === 2 && (s.cand[i] & pm) === s.cand[i]);
+      for (let ai = 0; ai < wings.length; ai++) for (let bi = ai + 1; bi < wings.length; bi++) {
+        const a = wings[ai], b = wings[bi];
+        if (s.cand[a] === s.cand[b]) continue;
+        const zm = s.cand[a] & s.cand[b];
+        if (POP[zm] !== 1) continue;
+        if ((s.cand[a] | s.cand[b]) !== pm) continue;
+        const z = DIG[zm][0];
+        const elim = [];
+        for (let i = 0; i < 81; i++) {
+          if (i === a || i === b || i === p || s.grid[i] || !(s.cand[i] & zm)) continue;
+          if (sees(i, a) && sees(i, b) && sees(i, p)) elim.push([i, z]);
+        }
+        if (!elim.length) continue;
+        const st = mk('xyz_wing', 'XYZ-Wing', 3, { elim });
+        st.hl.cells = [p, a, b];
+        st.hl.cands = []; for (const c of [p, a, b]) for (const d of DIG[s.cand[c]]) st.hl.cands.push([c, d]);
+        st.nudge = 'Etsi XYZ-Wing: kolmiehdokkainen ruutu ja kaksi kaksiehdokkaista siipeä. Katso ruutua ' + cellName(p) + '.';
+        st.text = 'Ruudussa ' + cellName(p) + ' on ehdokkaat ' + DIG[pm].join(', ') + ', ja se näkee ruudut ' + cellName(a) + ' (' + DIG[s.cand[a]].join('/') + ') ja ' + cellName(b) + ' (' + DIG[s.cand[b]].join('/') + '). ' +
+          'Kolmesta ruudusta vähintään yksi on ' + z + ': jos ' + cellName(p) + ' ei ole ' + z + ', se vie toisen siiven toisen numeron ja pakottaa siiven arvoon ' + z + '. ' +
+          'Siksi ruutu, joka näkee kaikki kolme, ei voi olla ' + z + '. Poistetaan ' + z + ' ruuduista ' + cellList(elim.map(e => e[0])) + '.';
+        return st;
+      }
+    }
+    return null;
+  };
+
+  // ---------- chains (X-chain, XY-chain, AIC) ----------
+  // node id = cell*9 + (d-1)
+  function nodeCell(n) { return (n / 9) | 0; }
+  function nodeDig(n) { return (n % 9) + 1; }
+  function conflict(a, b) {
+    if (a === b) return false;
+    const ca = nodeCell(a), cb = nodeCell(b);
+    if (ca === cb) return true;
+    return nodeDig(a) === nodeDig(b) && sees(ca, cb);
+  }
+
+  function chainSearch(s, mode, maxNodes, digitFilter) {
+    // collect strong links
+    const has = n => !s.grid[nodeCell(n)] && (s.cand[nodeCell(n)] & BIT(nodeDig(n)));
+    const strong = new Map(); // node -> array of [node, reason]
+    const addStrong = (a, b, reason) => {
+      if (!strong.has(a)) strong.set(a, []);
+      if (!strong.has(b)) strong.set(b, []);
+      if (!strong.get(a).some(x => x[0] === b)) strong.get(a).push([b, reason]);
+      if (!strong.get(b).some(x => x[0] === a)) strong.get(b).push([a, reason]);
+    };
+    if (mode !== 'x') {
+      for (let i = 0; i < 81; i++) {
+        if (s.grid[i] || POP[s.cand[i]] !== 2) continue;
+        const [x, y] = DIG[s.cand[i]];
+        addStrong(i * 9 + x - 1, i * 9 + y - 1, { t: 'cell', cell: i });
+      }
+    }
+    if (mode !== 'xy') {
+      for (let u = 0; u < 27; u++) for (let d = 1; d <= 9; d++) {
+        if (digitFilter && d !== digitFilter) continue;
+        const p = positions(s, u, d);
+        if (p.length !== 2) continue;
+        addStrong(p[0] * 9 + d - 1, p[1] * 9 + d - 1, { t: 'unit', u: u });
+      }
+    }
+    const weakNeighbors = (n) => {
+      const c = nodeCell(n), d = nodeDig(n), b = BIT(d), out = [];
+      for (const p of PEERS[c]) if (!s.grid[p] && (s.cand[p] & b)) out.push(p * 9 + d - 1);
+      if (mode === 'aic') for (const e of DIG[s.cand[c]]) if (e !== d) out.push(c * 9 + e - 1);
+      return out;
+    };
+    // all candidate nodes (for elimination check)
+    const allNodes = [];
+    for (let i = 0; i < 81; i++) if (!s.grid[i]) for (const d of DIG[s.cand[i]]) allNodes.push(i * 9 + d - 1);
+
+    let best = null;
+    const starts = [...strong.keys()].sort((a, b) => a - b);
+    const parent = new Map();
+    for (const A of starts) {
+      // targets conflicting with A
+      const confA = [];
+      for (const c of PEERS[nodeCell(A)]) if (!s.grid[c] && (s.cand[c] & BIT(nodeDig(A)))) confA.push(c * 9 + nodeDig(A) - 1);
+      for (const e of DIG[s.cand[nodeCell(A)]]) if (e !== nodeDig(A)) confA.push(nodeCell(A) * 9 + e - 1);
+      parent.clear();
+      // state key = node*2 + val (val 1 = TRUE)
+      const startKey = A * 2;
+      parent.set(startKey, -1);
+      let frontier = [startKey];
+      let depth = 1; // nodes in chain so far
+      const limit = best ? Math.min(maxNodes, best.nodes.length) : maxNodes;
+      while (frontier.length && depth < limit) {
+        const next = [];
+        for (const key of frontier) {
+          const n = key >> 1, val = key & 1;
+          if (val === 0) {
+            const sl = strong.get(n) || [];
+            for (const [m] of sl) {
+              const k2 = m * 2 + 1;
+              if (parent.has(k2)) continue;
+              parent.set(k2, key);
+              next.push(k2);
+              // evaluate
+              if (m === A) {
+                const path = rebuild(parent, k2);
+                const cand = { type: 'place', nodes: path, place: [nodeCell(A), nodeDig(A)], elim: [] };
+                if (!best || path.length < best.nodes.length) best = cand;
+                continue;
+              }
+              const elim = [];
+              for (const x of confA) if (x !== m && conflict(x, m) && has(x)) elim.push(x);
+              if (elim.length) {
+                const path = rebuild(parent, k2);
+                if (!best || path.length < best.nodes.length || (path.length === best.nodes.length && elim.length > best.elim.length)) {
+                  best = { type: 'elim', nodes: path, elim: elim };
+                }
+              }
+            }
+          } else {
+            for (const m of weakNeighbors(n)) {
+              const k2 = m * 2;
+              if (parent.has(k2)) continue;
+              if (!strong.has(m)) continue; // must continue with strong link
+              parent.set(k2, key);
+              next.push(k2);
+            }
+          }
+        }
+        frontier = next;
+        depth++;
+        if (best && depth >= best.nodes.length) break;
+      }
+    }
+    if (!best) return null;
+    // attach link reasons
+    const nodes = best.nodes; // array of node ids, alternating F,T,F,T... starting F
+    const links = [];
+    for (let k = 0; k + 1 < nodes.length; k++) {
+      const a = nodes[k], b = nodes[k + 1];
+      if (k % 2 === 0) {
+        const r = (strong.get(a) || []).find(x => x[0] === b);
+        links.push({ type: 's', reason: r ? r[1] : null });
+      } else {
+        links.push({ type: 'w' });
+      }
+    }
+    best.links = links;
+    return best;
+  }
+  function rebuild(parent, key) {
+    const out = [];
+    let k = key;
+    while (k !== -1 && k !== undefined) { out.push(k >> 1); k = parent.get(k); }
+    return out.reverse();
+  }
+
+  function weakReason(a, b) {
+    const ca = nodeCell(a), cb = nodeCell(b);
+    if (ca === cb) return 'samassa ruudussa voi olla vain yksi numero';
+    if (ROW[ca] === ROW[cb]) return 'sama rivi';
+    if (COL[ca] === COL[cb]) return 'sama sarake';
+    return 'sama laatikko';
+  }
+  function nodeStr(n) { return cellName(nodeCell(n)) + '=' + nodeDig(n); }
+
+  function chainStep(s, ch, id, name, level) {
+    const nodes = ch.nodes;
+    const A = nodes[0], B = nodes[nodes.length - 1];
+    const lines = [];
+    lines.push('Oletetaan, että ' + cellName(nodeCell(A)) + ' EI ole ' + nodeDig(A) + '. Silloin:');
+    for (let k = 0; k + 1 < nodes.length; k++) {
+      const b = nodes[k + 1], l = ch.links[k];
+      if (l.type === 's') {
+        let why;
+        if (l.reason && l.reason.t === 'cell') why = 'ruudussa on vain ehdokkaat ' + DIG[s.cand[nodeCell(b)]].join(' ja ');
+        else if (l.reason) why = unitName(l.reason.u, 'ine') + ' numerolle ' + nodeDig(b) + ' on vain kaksi paikkaa';
+        else why = 'vahva linkki';
+        lines.push('→ ' + cellName(nodeCell(b)) + ' ON ' + nodeDig(b) + ' (' + why + ')');
+      } else {
+        lines.push('→ ' + cellName(nodeCell(b)) + ' ei ole ' + nodeDig(b) + ' (' + weakReason(nodes[k], b) + ')');
+      }
+    }
+    const notation = nodes.map((n, k) => (k === 0 ? '' : (ch.links[k - 1].type === 's' ? ' = ' : ' – ')) + '(' + nodeDig(n) + ')' + cellName(nodeCell(n))).join('');
+    let conclusion, st;
+    if (ch.type === 'place') {
+      st = mk(id, name, level, { place: ch.place });
+      conclusion = 'Oletus johti siihen, että ' + cellName(nodeCell(A)) + ' kuitenkin ON ' + nodeDig(A) + ' – ristiriita. Siis ' + cellName(nodeCell(A)) + ' = ' + nodeDig(A) + '.';
+    } else {
+      const elim = ch.elim.map(x => [nodeCell(x), nodeDig(x)]);
+      st = mk(id, name, level, { elim });
+      if (nodeDig(A) === nodeDig(B) && elim.every(e => e[1] === nodeDig(A))) {
+        const d = nodeDig(A);
+        conclusion = 'Siis joko ' + cellName(nodeCell(A)) + ' tai ' + cellName(nodeCell(B)) + ' on ' + d + '. Kumpi tahansa se onkaan, ruudut jotka näkevät molemmat eivät voi olla ' + d +
+          '. Poistetaan ' + d + ' ruuduista ' + cellList(elim.map(e => e[0])) + '.';
+      } else {
+        conclusion = 'Siis ainakin toinen on totta: ' + cellName(nodeCell(A)) + ' = ' + nodeDig(A) + ' tai ' + cellName(nodeCell(B)) + ' = ' + nodeDig(B) +
+          '. Seuraavat ehdokkaat sulkisivat pois molemmat vaihtoehdot, joten ne voidaan poistaa: ' + elim.map(e => e[1] + ' (' + cellName(e[0]) + ')').join(', ') + '.';
+      }
+    }
+    st.hl.cells = [...new Set(nodes.map(nodeCell))];
+    st.hl.cands = nodes.map(n => [nodeCell(n), nodeDig(n), 0]);
+    st.hl.chain = nodes.map((n, k) => [nodeCell(n), nodeDig(n), k % 2]); // 0 = assumed false, 1 = true
+    st.hl.links = [];
+    for (let k = 0; k + 1 < nodes.length; k++) st.hl.links.push([nodeCell(nodes[k]), nodeDig(nodes[k]), nodeCell(nodes[k + 1]), nodeDig(nodes[k + 1]), ch.links[k].type]);
+    st.notation = notation;
+    st.text = lines.join('\n') + '\n' + conclusion;
+    return st;
+  }
+
+  function classifyChain(ch) {
+    const nodes = ch.nodes;
+    const digits = new Set(nodes.map(nodeDig));
+    const strongTypes = ch.links.filter(l => l.type === 's').map(l => l.reason ? l.reason.t : 'unit');
+    const isX = digits.size === 1;
+    const isXY = strongTypes.every(t => t === 'cell') && ch.links.every((l, k) => l.type === 's' || nodeCell(nodes[k]) !== nodeCell(nodes[k + 1]));
+    return { isX, isXY, len: nodes.length, strongTypes };
+  }
+
+  // X-chain short (turbot fish family): 4 nodes, level 3
+  T.turbot = function (s) {
+    for (let d = 1; d <= 9; d++) {
+      const ch = chainSearch(s, 'x', 4, d);
+      if (!ch || ch.nodes.length > 4) continue;
+      const units = ch.links.filter(l => l.type === 's').map(l => l.reason.u);
+      const t = units.map(unitType);
+      let name = 'Turbot Fish';
+      if (t[0] === t[1] && t[0] !== 2) name = 'Skyscraper';
+      else if (t[0] !== 2 && t[1] !== 2 && t[0] !== t[1]) name = '2-String Kite';
+      const st = chainStep(s, ch, 'turbot', name + ' (X-ketju)', 3);
+      st.hl.digit = d;
+      st.nudge = 'Katso numeroa ' + d + ': kaksi "vain kaksi paikkaa" -linkkiä, joiden päät näkevät toisensa.';
+      return st;
+    }
+    return null;
+  };
+
+  T.x_chain = function (s) {
+    let best = null;
+    for (let d = 1; d <= 9; d++) {
+      const ch = chainSearch(s, 'x', best ? Math.min(12, best.nodes.length) : 12, d);
+      if (ch && (!best || ch.nodes.length < best.nodes.length)) best = ch;
+    }
+    if (!best) return null;
+    const st = chainStep(s, best, 'x_chain', 'X-ketju', 4);
+    st.hl.digit = nodeDig(best.nodes[0]);
+    st.nudge = 'Seuraa numeron ' + nodeDig(best.nodes[0]) + ' vahvoja linkkejä (vain kaksi paikkaa) ketjuksi. Aloita ruudusta ' + cellName(nodeCell(best.nodes[0])) + '.';
+    return st;
+  };
+
+  T.xy_chain = function (s) {
+    const ch = chainSearch(s, 'xy', 14);
+    if (!ch) return null;
+    const st = chainStep(s, ch, 'xy_chain', 'XY-ketju', 4);
+    st.nudge = 'Rakenna ketju kaksiehdokkaisista ruuduista. Aloita ruudusta ' + cellName(nodeCell(ch.nodes[0])) + '.';
+    return st;
+  };
+
+  T.aic_short = function (s) {
+    const ch = chainSearch(s, 'aic', 6);
+    if (!ch) return null;
+    const c = classifyChain(ch);
+    const start = cellName(nodeCell(ch.nodes[0]));
+    let name = 'Lyhyt AIC-ketju', nudge = 'Etsi lyhyt ketju, jossa vuorottelevat vahvat ja heikot linkit. Aloita ruudusta ' + start + ' (numero ' + nodeDig(ch.nodes[0]) + ').';
+    if (c.isX) { name = 'X-ketju'; nudge = 'Seuraa numeron ' + nodeDig(ch.nodes[0]) + ' "vain kaksi paikkaa" -linkkejä ketjuksi. Aloita ruudusta ' + start + '.'; }
+    else if (c.isXY) { name = 'XY-ketju'; nudge = 'Rakenna ketju kaksiehdokkaisista ruuduista. Aloita ruudusta ' + start + '.'; }
+    else if (c.len === 6 && c.strongTypes[0] === 'cell' && c.strongTypes[1] === 'unit' && c.strongTypes[2] === 'cell') { name = 'W-Wing'; nudge = 'Etsi kaksi samanlaista kaksiehdokasta ruutua, joita yhdistää vahva linkki (W-Wing). Aloita ruudusta ' + start + '.'; }
+    const st = chainStep(s, ch, 'aic_short', name, 4);
+    st.nudge = nudge;
+    return st;
+  };
+
+  T.aic = function (s) {
+    const ch = chainSearch(s, 'aic', 16);
+    if (!ch) return null;
+    const st = chainStep(s, ch, 'aic', 'AIC-ketju', 5);
+    st.nudge = 'Tarvitaan pidempi vuorotteleva ketju (vahva–heikko–vahva…). Aloita ruudusta ' + cellName(nodeCell(ch.nodes[0])) + ' ja numerosta ' + nodeDig(ch.nodes[0]) + '.';
+    return st;
+  };
+
+  // order of techniques (simplest first)
+  const ORDER = [
+    'full_house', 'hidden_single_box', 'hidden_single_line', 'naked_single',
+    'pointing', 'claiming', 'naked_2', 'hidden_2', 'naked_3',
+    'hidden_3', 'fish_2', 'turbot', 'xy_wing', 'xyz_wing', 'naked_4', 'hidden_4',
+    'fish_3', 'aic_short', 'x_chain', 'xy_chain', 'fish_4',
+    'aic'
+  ];
+  const TECH_LEVEL = {
+    full_house: 1, hidden_single_box: 1, hidden_single_line: 1, naked_single: 1,
+    pointing: 2, claiming: 2, naked_2: 2, hidden_2: 2, naked_3: 2,
+    hidden_3: 3, fish_2: 3, turbot: 3, xy_wing: 3, xyz_wing: 3, naked_4: 3, hidden_4: 3,
+    fish_3: 4, aic_short: 4, x_chain: 4, xy_chain: 4, fish_4: 4,
+    aic: 5
+  };
+
+  function findStep(s, maxLevel) {
+    maxLevel = maxLevel || 5;
+    for (const id of ORDER) {
+      if (TECH_LEVEL[id] > maxLevel) break;
+      const st = T[id](s);
+      if (st) return st;
+    }
+    return null;
+  }
+
+  // grade a puzzle: returns {solved, level, score, counts}
+  const TECH_SCORE = {
+    full_house: 1, hidden_single: 2, naked_single: 4,
+    pointing: 15, claiming: 15, naked_2: 20, hidden_2: 25, naked_3: 30,
+    hidden_3: 45, fish_2: 50, turbot: 55, xy_wing: 60, xyz_wing: 65, naked_4: 70, hidden_4: 75,
+    fish_3: 90, aic_short: 100, x_chain: 110, xy_chain: 110, fish_4: 130, aic: 160
+  };
+  function grade(grid, maxLevel) {
+    const s = makeState(grid);
+    let level = 1, score = 0, steps = 0;
+    const counts = {};
+    while (!isSolved(s)) {
+      if (isBroken(s)) return { solved: false, level, score, counts, broken: true };
+      const st = findStep(s, maxLevel);
+      if (!st) return { solved: false, level, score, counts };
+      applyStep(s, st);
+      level = Math.max(level, st.level);
+      score += TECH_SCORE[st.tech] || 0;
+      counts[st.tech] = (counts[st.tech] || 0) + 1;
+      steps++;
+    }
+    return { solved: true, level, score, counts, steps };
+  }
+
+  // ---------- generator ----------
+  function digPuzzle(solution, target, rnd, stopAt) {
+    const puzzle = Int8Array.from(solution);
+    const order = shuffle([...Array(81).keys()], rnd);
+    let clues = 81;
+    for (const i of order) {
+      if (stopAt && clues <= stopAt) break;
+      const keep = puzzle[i];
+      puzzle[i] = 0;
+      if (countSolutions(puzzle, 2) !== 1) { puzzle[i] = keep; continue; }
+      const g = grade(puzzle, target);
+      if (!g.solved) { puzzle[i] = keep; continue; }
+      clues--;
+    }
+    return puzzle;
+  }
+  function advancedSteps(counts, minLevel) {
+    let n = 0;
+    for (const k in counts) {
+      const lvl = TECH_LEVEL[k] || (k === 'hidden_single' ? 1 : 0);
+      if (lvl >= minLevel) n += counts[k];
+    }
+    return n;
+  }
+
+  function generate(level, seed, maxTries) {
+    const rnd = rngFrom(seed == null ? (Math.random() * 4294967296) >>> 0 : seed);
+    maxTries = maxTries || 200;
+    for (let t = 0; t < maxTries; t++) {
+      const sol = randomSolution(rnd);
+      const stopAt = level === 1 ? 32 + ((rnd() * 4) | 0) : 0;
+      const pz = digPuzzle(sol, level, rnd, stopAt);
+      const g = grade(pz, 5);
+      const okExtra = level !== 2 || advancedSteps(g.counts, 2) >= 2;
+      if (g.solved && g.level === level && okExtra) {
+        return { puzzle: toStr(pz), solution: toStr(sol), level: level, score: g.score, counts: g.counts, tries: t + 1 };
+      }
+    }
+    return null;
+  }
+  function toStr(g) { let s = ''; for (let i = 0; i < 81; i++) s += g[i] ? g[i] : '.'; return s; }
+  function fromStr(str) { const g = new Int8Array(81); for (let i = 0; i < 81; i++) { const ch = str[i]; g[i] = ch >= '1' && ch <= '9' ? +ch : 0; } return g; }
+
+  const api = {
+    ROW, COL, BOX, UNITS, PEERS, POP, DIG, BIT, sees, cellName, unitName,
+    countSolutions, randomSolution, makeState, cloneState, placeDigit, applyStep, isBroken, isSolved,
+    findStep, grade, generate, digPuzzle, toStr, fromStr, rngFrom, T, ORDER, TECH_LEVEL
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.SudokuEngine = api;
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  const E = window.SudokuEngine;
+  const INITIAL = {"1":{"puzzle":"96.3.147.8.7.4...6......2......1638..5.8............69..328.6..4.6.5.9.3.1.63..47","solution":"965321478827945136341768295279516384654893712138472569793284651486157923512639847","level":1},"2":{"puzzle":"7.....8.4.5...4.1....3...7.1.25.......927.4..........3.....5...63..4...74.....65.","solution":"716952834253784916894316572142563798389271465567498123978625341635149287421837659","level":2},"3":{"puzzle":"......7181..9..4......7...5....6....84......7...4.9183..5....21.3...6...2.7..5...","solution":"529643718173958462684172935391867254842531697756429183965784321438216579217395846","level":3},"4":{"puzzle":"..7..1...4932.....8...7..5.....39...9.....7.4...18....5...2...31.2...9....9..36..","solution":"657391842493258167821476359264739581918562734375184296586927413132645978749813625","level":4},"5":{"puzzle":"....34.1.3.5...........62.36...475...9......75..9.3.2...1.9...6...5.8...84.......","solution":"968234715325719468417856293682147539193625847574983621751492386239568174846371952","level":5},"start":{"puzzle":"...8..3.54.1......5....6..9.9....46..1..6.2.....4.......2.1.7....9.43.2......9...","solution":"926874315481395672537126849293581467814967253675432981352618794169743528748259136","level":2}};
+  const { ROW, COL, BOX, PEERS, UNITS } = E;
+
+  const LEVELS = {
+    1: { name: 'Helppo', desc: 'Pelkät sinkut, paljon valmiita numeroita.' },
+    2: { name: 'Keskitaso', desc: 'Lukitut ehdokkaat ja parit.' },
+    3: { name: 'Vaikea', desc: 'Kolmikot, X-Wing, XY-Wing, Skyscraper.' },
+    4: { name: 'Erittäin vaikea', desc: 'Swordfish, W-Wing, X- ja XY-ketjut.' },
+    5: { name: 'Mestari', desc: 'Pitkät vuorottelevat ketjut (AIC).' },
+    6: { name: 'Oma pulma', desc: '' }
+  };
+  const MODES = ['normal', 'corner', 'centre', 'colour'];
+  const COLOUR_NAMES = ['harmaa', 'punainen', 'oranssi', 'keltainen', 'vihreä', 'turkoosi', 'sininen', 'violetti', 'pinkki'];
+  const STORE = 'ruutuvihko.v1';
+
+  // ---------- storage ----------
+  function load(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+  }
+  function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } }
+
+  const DEFAULT_SETTINGS = { conflicts: true, autoClean: true, sameDigit: true, peers: false, timer: true, theme: 'system' };
+  let settings = Object.assign({}, DEFAULT_SETTINGS, load(STORE + '.settings', {}));
+  let stats = load(STORE + '.stats', {});
+  let cache = load(STORE + '.cache', null);
+  if (!cache) { cache = {}; for (const L of [1, 2, 3, 4, 5]) cache[L] = INITIAL[L]; }
+
+  // ---------- game state ----------
+  let game = null;
+  let sel = new Set();
+  let mode = 'normal';
+  let tempMode = null;
+  let undoStack = [], redoStack = [];
+  let hint = null;        // { kind, stage, step, ... }
+  let wrongMarks = null;  // Set of cells flagged by Tarkista / hint
+  let paused = false;
+  let generating = false;
+
+  function newGameState(p) {
+    const given = E.fromStr(p.puzzle);
+    return {
+      puzzle: p.puzzle, solution: p.solution, level: p.level, custom: !!p.custom,
+      given: given, val: new Int8Array(81), corner: new Uint16Array(81), centre: new Uint16Array(81),
+      colours: Array.from({ length: 81 }, () => []),
+      time: 0, hints: 0, known: [], solved: false
+    };
+  }
+  function serialize() {
+    if (!game) return null;
+    return {
+      puzzle: game.puzzle, solution: game.solution, level: game.level, custom: game.custom,
+      val: Array.from(game.val), corner: Array.from(game.corner), centre: Array.from(game.centre),
+      colours: game.colours, time: game.time, hints: game.hints, known: game.known, solved: game.solved
+    };
+  }
+  function deserialize(o) {
+    const g = newGameState(o);
+    g.val = Int8Array.from(o.val); g.corner = Uint16Array.from(o.corner); g.centre = Uint16Array.from(o.centre);
+    g.colours = o.colours.map(a => a.slice()); g.time = o.time || 0; g.hints = o.hints || 0; g.known = o.known || []; g.solved = !!o.solved;
+    return g;
+  }
+  let saveTimer = 0;
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => store(STORE + '.game', serialize()), 150);
+  }
+
+  function snap() {
+    return { val: game.val.slice(), corner: game.corner.slice(), centre: game.centre.slice(), colours: game.colours.map(a => a.slice()), known: game.known.slice() };
+  }
+  function restore(s) {
+    game.val = s.val.slice(); game.corner = s.corner.slice(); game.centre = s.centre.slice();
+    game.colours = s.colours.map(a => a.slice()); game.known = s.known.slice();
+  }
+  function commit(fn, keepHint) {
+    if (!game || game.solved || paused) return false;
+    const before = snap();
+    const changed = fn();
+    if (!changed) return false;
+    undoStack.push(before);
+    if (undoStack.length > 600) undoStack.shift();
+    redoStack.length = 0;
+    wrongMarks = null;
+    if (!keepHint) closeHint();
+    render(); updatePad(); save();
+    checkComplete();
+    return true;
+  }
+  function undo() {
+    if (!undoStack.length || !game || game.solved) return;
+    redoStack.push(snap()); restore(undoStack.pop());
+    wrongMarks = null; closeHint(); render(); updatePad(); save();
+  }
+  function redo() {
+    if (!redoStack.length || !game || game.solved) return;
+    undoStack.push(snap()); restore(redoStack.pop());
+    wrongMarks = null; closeHint(); render(); updatePad(); save();
+    checkComplete();
+  }
+
+  const digitAt = i => game.given[i] || game.val[i];
+
+  function cleanPeers(i, d) {
+    const m = ~(1 << (d - 1));
+    for (const p of PEERS[i]) { game.corner[p] &= m; game.centre[p] &= m; }
+  }
+
+  function inputDigit(d, m) {
+    m = m || tempMode || mode;
+    const cells = [...sel];
+    if (!cells.length) { flash('Valitse ensin ruutu'); return; }
+    commit(() => {
+      if (m === 'normal') {
+        const t = cells.filter(i => !game.given[i]);
+        if (!t.length) return false;
+        const all = t.every(i => game.val[i] === d);
+        for (const i of t) game.val[i] = all ? 0 : d;
+        if (!all && settings.autoClean) for (const i of t) cleanPeers(i, d);
+        return true;
+      }
+      if (m === 'corner' || m === 'centre') {
+        const arr = m === 'corner' ? game.corner : game.centre;
+        const t = cells.filter(i => !game.given[i] && !game.val[i]);
+        if (!t.length) return false;
+        const b = 1 << (d - 1);
+        const all = t.every(i => arr[i] & b);
+        for (const i of t) arr[i] = all ? (arr[i] & ~b) : (arr[i] | b);
+        return true;
+      }
+      if (m === 'colour') {
+        const all = cells.every(i => game.colours[i].includes(d));
+        for (const i of cells) {
+          const a = game.colours[i];
+          if (all) game.colours[i] = a.filter(x => x !== d);
+          else if (!a.includes(d)) a.push(d);
+        }
+        return true;
+      }
+      return false;
+    });
+  }
+
+  function deleteSel() {
+    const cells = [...sel];
+    if (!cells.length) return;
+    const m = tempMode || mode;
+    commit(() => {
+      const t = cells.filter(i => !game.given[i]);
+      const clearVals = () => { t.forEach(i => { game.val[i] = 0; }); return true; };
+      const clearCol = () => { cells.forEach(i => { game.colours[i] = []; }); return true; };
+      if (m === 'colour') {
+        if (cells.some(i => game.colours[i].length)) return clearCol();
+      } else {
+        if (t.some(i => game.val[i])) return clearVals();
+        if (m === 'corner' && t.some(i => game.corner[i])) { t.forEach(i => { game.corner[i] = 0; }); return true; }
+        if (m === 'centre' && t.some(i => game.centre[i])) { t.forEach(i => { game.centre[i] = 0; }); return true; }
+      }
+      if (t.some(i => game.val[i])) return clearVals();
+      if (t.some(i => game.corner[i] || game.centre[i])) { t.forEach(i => { game.corner[i] = 0; game.centre[i] = 0; }); return true; }
+      if (cells.some(i => game.colours[i].length)) return clearCol();
+      return false;
+    });
+  }
+
+  // ---------- rendering ----------
+  const svg = document.getElementById('board');
+  const R = 100;
+  function cpos(i, d) {
+    return [COL[i] * R + 18 + ((d - 1) % 3) * 32, ROW[i] * R + 19 + (((d - 1) / 3) | 0) * 31];
+  }
+  const CORNER_POS = [[17, 21], [83, 21], [17, 82], [83, 82], [50, 21], [50, 82], [17, 51], [83, 51], [50, 51]];
+
+  function conflicts() {
+    const bad = new Set();
+    if (!settings.conflicts) return bad;
+    for (let i = 0; i < 81; i++) {
+      const d = digitAt(i);
+      if (!d) continue;
+      for (const p of PEERS[i]) if (p > i && digitAt(p) === d) { bad.add(i); bad.add(p); }
+    }
+    return bad;
+  }
+
+  function render() {
+    if (!game) { svg.innerHTML = '<rect class="paper" x="0" y="0" width="900" height="900"/>'; return; }
+    const o = [];
+    o.push('<defs><clipPath id="cc"><rect x="0" y="0" width="100" height="100"/></clipPath></defs>');
+    o.push('<rect class="paper" x="-8" y="-8" width="916" height="916" rx="10"/>');
+    const ov = hint && hint.stage >= 2 ? hint.overlay : null;
+    const single = sel.size === 1 ? [...sel][0] : -1;
+    const selDigit = single >= 0 ? digitAt(single) : 0;
+    const rect = (i, cls) => o.push('<rect class="' + cls + '" x="' + COL[i] * R + '" y="' + ROW[i] * R + '" width="100" height="100"/>');
+
+    // colours
+    for (let i = 0; i < 81; i++) {
+      const cs = game.colours[i];
+      if (!cs.length) continue;
+      if (cs.length === 1) { rect(i, 'col' + cs[0]); continue; }
+      o.push('<g transform="translate(' + COL[i] * R + ',' + ROW[i] * R + ')" clip-path="url(#cc)">');
+      const n = cs.length, start = -Math.PI * 0.75;
+      for (let k = 0; k < n; k++) {
+        const a0 = start + k * 2 * Math.PI / n, a1 = a0 + 2 * Math.PI / n, rr = 80;
+        const x0 = 50 + rr * Math.cos(a0), y0 = 50 + rr * Math.sin(a0), x1 = 50 + rr * Math.cos(a1), y1 = 50 + rr * Math.sin(a1);
+        o.push('<path class="col' + cs[k] + '" d="M50,50L' + x0.toFixed(1) + ',' + y0.toFixed(1) + 'A' + rr + ',' + rr + ' 0 0 1 ' + x1.toFixed(1) + ',' + y1.toFixed(1) + 'Z"/>');
+      }
+      o.push('</g>');
+    }
+    // highlights
+    if (ov && ov.unit) for (const i of ov.unit) rect(i, 'h-unit');
+    if (!ov && settings.peers && single >= 0) for (const p of PEERS[single]) rect(p, 'h-peer');
+    if (!ov && settings.sameDigit && selDigit) for (let i = 0; i < 81; i++) if (i !== single && digitAt(i) === selDigit) rect(i, 'h-same');
+    // selection fill
+    for (const i of sel) rect(i, 'sel-fill');
+    // grid
+    for (let k = 1; k < 9; k++) {
+      if (k % 3 === 0) continue;
+      o.push('<line class="g-thin" x1="' + k * R + '" y1="0" x2="' + k * R + '" y2="900"/>');
+      o.push('<line class="g-thin" x1="0" y1="' + k * R + '" x2="900" y2="' + k * R + '"/>');
+    }
+    for (const k of [3, 6]) {
+      o.push('<line class="g-thick" x1="' + k * R + '" y1="0" x2="' + k * R + '" y2="900"/>');
+      o.push('<line class="g-thick" x1="0" y1="' + k * R + '" x2="900" y2="' + k * R + '"/>');
+    }
+    o.push('<rect class="g-frame" x="0" y="0" width="900" height="900" rx="3"/>');
+    // selection outline
+    if (sel.size) {
+      let d = '';
+      const ins = 5;
+      for (const i of sel) {
+        const r = ROW[i], c = COL[i], x = c * R, y = r * R;
+        const has = (rr, cc) => rr >= 0 && rr < 9 && cc >= 0 && cc < 9 && sel.has(rr * 9 + cc);
+        if (!has(r - 1, c)) d += 'M' + (x + (has(r, c - 1) ? 0 : ins)) + ',' + (y + ins) + 'H' + (x + R - (has(r, c + 1) ? 0 : ins));
+        if (!has(r + 1, c)) d += 'M' + (x + (has(r, c - 1) ? 0 : ins)) + ',' + (y + R - ins) + 'H' + (x + R - (has(r, c + 1) ? 0 : ins));
+        if (!has(r, c - 1)) d += 'M' + (x + ins) + ',' + (y + (has(r - 1, c) ? 0 : ins)) + 'V' + (y + R - (has(r + 1, c) ? 0 : ins));
+        if (!has(r, c + 1)) d += 'M' + (x + R - ins) + ',' + (y + (has(r - 1, c) ? 0 : ins)) + 'V' + (y + R - (has(r + 1, c) ? 0 : ins));
+      }
+      o.push('<path class="sel-edge" d="' + d + '"/>');
+    }
+    // hint pattern cells
+    if (ov && ov.cells) for (const i of ov.cells) o.push('<rect class="h-cell" x="' + (COL[i] * R + 6) + '" y="' + (ROW[i] * R + 6) + '" width="88" height="88" rx="8"/>');
+    // wrong marks
+    if (wrongMarks) for (const i of wrongMarks) o.push('<circle class="wrong-ring" cx="' + (COL[i] * R + 50) + '" cy="' + (ROW[i] * R + 50) + '" r="40"/>');
+    if (ov && ov.blockers) for (const i of ov.blockers) o.push('<circle class="blocker" cx="' + (COL[i] * R + 50) + '" cy="' + (ROW[i] * R + 50) + '" r="38"/>');
+    // digits & marks
+    const bad = conflicts();
+    for (let i = 0; i < 81; i++) {
+      const x = COL[i] * R, y = ROW[i] * R;
+      if (game.given[i]) {
+        o.push('<text class="given' + (bad.has(i) ? ' d-err' : '') + '" x="' + (x + 50) + '" y="' + (y + 52) + '" text-anchor="middle" dominant-baseline="central">' + game.given[i] + '</text>');
+        continue;
+      }
+      if (game.val[i]) {
+        o.push('<text class="val' + (bad.has(i) ? ' d-err' : '') + '" x="' + (x + 50) + '" y="' + (y + 52) + '" text-anchor="middle" dominant-baseline="central">' + game.val[i] + '</text>');
+        continue;
+      }
+      const hlD = settings.sameDigit ? selDigit : 0;
+      if (game.corner[i]) {
+        const ds = E.DIG[game.corner[i]];
+        ds.forEach((d, k) => {
+          const p = CORNER_POS[k];
+          o.push('<text class="mk' + (d === hlD ? ' mk-hl' : '') + '" font-size="23" x="' + (x + p[0]) + '" y="' + (y + p[1]) + '" text-anchor="middle" dominant-baseline="central">' + d + '</text>');
+        });
+      }
+      if (game.centre[i]) {
+        const ds = E.DIG[game.centre[i]];
+        const fs = ds.length <= 3 ? 27 : ds.length <= 5 ? 21 : ds.length <= 7 ? 16.5 : 14;
+        let t = '<text class="mk" font-size="' + fs + '" x="' + (x + 50) + '" y="' + (y + 51) + '" text-anchor="middle" dominant-baseline="central">';
+        for (const d of ds) t += d === hlD ? '<tspan class="mk-hl">' + d + '</tspan>' : d;
+        o.push(t + '</text>');
+      }
+    }
+    // hint overlay: placement, candidates, links
+    if (ov) {
+      if (ov.links) for (const l of ov.links) {
+        const [x1, y1] = cpos(l[0], l[1]), [x2, y2] = cpos(l[2], l[3]);
+        const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, sh = 15;
+        o.push('<line class="' + (l[4] === 's' ? 'link-s' : 'link-w') + '" x1="' + (x1 + dx / len * sh).toFixed(1) + '" y1="' + (y1 + dy / len * sh).toFixed(1) + '" x2="' + (x2 - dx / len * sh).toFixed(1) + '" y2="' + (y2 - dy / len * sh).toFixed(1) + '"/>');
+      }
+      const drawn = new Set();
+      const node = (i, d, cls, tcls) => {
+        const k = i * 9 + d; if (drawn.has(k)) return; drawn.add(k);
+        const [cx, cy] = cpos(i, d);
+        o.push('<circle class="nd ' + cls + '" cx="' + cx + '" cy="' + cy + '" r="14"/>');
+        o.push('<text class="nd-t' + (tcls ? ' ' + tcls : '') + '" x="' + cx + '" y="' + (cy + 1) + '" text-anchor="middle" dominant-baseline="central">' + d + '</text>');
+      };
+      if (ov.elim) for (const [i, d] of ov.elim) {
+        node(i, d, 'nd-elim');
+        const [cx, cy] = cpos(i, d);
+        o.push('<line class="nd-x" x1="' + (cx - 12) + '" y1="' + (cy - 12) + '" x2="' + (cx + 12) + '" y2="' + (cy + 12) + '"/>');
+      }
+      if (ov.chain) for (const [i, d, v] of ov.chain) node(i, d, v ? 'nd-on' : 'nd-off', v ? 'nd-t-on' : '');
+      if (ov.cands) for (const [i, d] of ov.cands) node(i, d, 'nd-plain');
+      if (ov.place) {
+        const [i, d] = ov.place;
+        o.push('<text class="ghost" x="' + (COL[i] * R + 50) + '" y="' + (ROW[i] * R + 52) + '" text-anchor="middle" dominant-baseline="central">' + d + '</text>');
+      }
+    }
+    svg.innerHTML = o.join('');
+  }
+
+  // ---------- keypad ----------
+  const pad = document.getElementById('pad');
+  const keys = [];
+  for (let d = 1; d <= 9; d++) {
+    const b = document.createElement('button');
+    b.className = 'key';
+    b.dataset.d = d;
+    b.style.gridColumn = String(((d - 1) % 3) + 1);
+    b.style.gridRow = String((((d - 1) / 3) | 0) + 1);
+    b.addEventListener('pointerdown', e => e.preventDefault());
+    b.addEventListener('click', () => { inputDigit(d); });
+    pad.appendChild(b);
+    keys.push(b);
+  }
+  function updatePad() {
+    const m = tempMode || mode;
+    const counts = new Array(10).fill(0);
+    if (game) for (let i = 0; i < 81; i++) counts[digitAt(i)]++;
+    keys.forEach((b, k) => {
+      const d = k + 1;
+      if (m === 'colour') {
+        b.innerHTML = '<span class="sw col-sw" style="background: var(--c' + d + ')"></span><span class="sw-n">' + d + '</span>';
+        b.setAttribute('aria-label', 'Väri ' + COLOUR_NAMES[k]);
+        b.classList.remove('done');
+      } else {
+        b.innerHTML = m === 'corner' ? '<span class="k-corner">' + d + '</span>' : m === 'centre' ? '<span class="k-centre">' + d + '</span>' : String(d);
+        b.setAttribute('aria-label', (m === 'normal' ? 'Numero ' : m === 'corner' ? 'Kulmamerkintä ' : 'Keskimerkintä ') + d);
+        b.classList.toggle('done', counts[d] >= 9);
+      }
+    });
+    document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === m)));
+    document.getElementById('btn-undo').disabled = !undoStack.length;
+    document.getElementById('btn-redo').disabled = !redoStack.length;
+  }
+  function setMode(m) { mode = m; tempMode = null; updatePad(); }
+  document.querySelectorAll('.mode').forEach(b => {
+    b.addEventListener('pointerdown', e => e.preventDefault());
+    b.addEventListener('click', () => setMode(b.dataset.mode));
+  });
+  document.getElementById('btn-del').addEventListener('click', deleteSel);
+  document.getElementById('btn-undo').addEventListener('click', undo);
+  document.getElementById('btn-redo').addEventListener('click', redo);
+  ['btn-del', 'btn-undo', 'btn-redo'].forEach(id => document.getElementById(id).addEventListener('pointerdown', e => e.preventDefault()));
+
+  // ---------- selection with pointer ----------
+  let drag = null;
+  let lastTap = { t: 0, cell: -1 };
+  function cellFromPoint(clientX, clientY, strict) {
+    const r = svg.getBoundingClientRect();
+    const ux = (clientX - r.left) / r.width * 916 - 8, uy = (clientY - r.top) / r.height * 916 - 8;
+    if (ux < 0 || uy < 0 || ux >= 900 || uy >= 900) return -1;
+    const c = Math.floor(ux / R), rr = Math.floor(uy / R);
+    if (strict) {
+      const fx = ux - c * R - 50, fy = uy - rr * R - 50;
+      if (Math.abs(fx) > 40 || Math.abs(fy) > 40) return -1;
+    }
+    return rr * 9 + c;
+  }
+  svg.addEventListener('pointerdown', e => {
+    if (!game || paused) return;
+    const cell = cellFromPoint(e.clientX, e.clientY, false);
+    if (cell < 0) return;
+    e.preventDefault();
+    svg.focus({ preventScroll: true });
+    try { svg.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    const additive = e.ctrlKey || e.metaKey || e.shiftKey;
+    const prev = new Set(sel);
+    const now = performance.now();
+    // double tap: select all cells with same digit
+    if (!additive && lastTap.cell === cell && now - lastTap.t < 320 && digitAt(cell)) {
+      const d = digitAt(cell);
+      sel = new Set(); for (let i = 0; i < 81; i++) if (digitAt(i) === d) sel.add(i);
+      lastTap = { t: 0, cell: -1 };
+      drag = null; render(); return;
+    }
+    lastTap = { t: now, cell: cell };
+    let removing = false;
+    if (additive) {
+      if (sel.has(cell)) { sel.delete(cell); removing = true; } else sel.add(cell);
+    } else {
+      sel = new Set([cell]);
+    }
+    drag = { id: e.pointerId, start: cell, moved: false, removing: removing, timer: 0 };
+    if (!additive && e.pointerType !== 'mouse') {
+      drag.timer = setTimeout(() => {
+        if (!drag || drag.moved) return;
+        // long press: add to previous selection (or remove if already selected)
+        if (prev.has(cell) && prev.size > 1) { prev.delete(cell); sel = prev; drag.removing = true; }
+        else { prev.add(cell); sel = prev; }
+        drag.additive = true;
+        try { navigator.vibrate && navigator.vibrate(12); } catch (err) { /* ignore */ }
+        render();
+      }, 380);
+    }
+    render();
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const cell = cellFromPoint(e.clientX, e.clientY, true);
+    if (cell < 0) return;
+    if (cell !== drag.start) { drag.moved = true; clearTimeout(drag.timer); }
+    if (drag.removing) { if (sel.has(cell)) { sel.delete(cell); render(); } }
+    else if (!sel.has(cell)) { sel.add(cell); render(); }
+  });
+  const endDrag = e => { if (drag && e.pointerId === drag.id) { clearTimeout(drag.timer); drag = null; } };
+  svg.addEventListener('pointerup', endDrag);
+  svg.addEventListener('pointercancel', endDrag);
+
+  // tap on empty page area clears selection
+  document.getElementById('app').addEventListener('pointerdown', e => {
+    if (e.target === e.currentTarget || e.target.classList.contains('play') || e.target.classList.contains('bar')) {
+      if (sel.size) { sel.clear(); render(); }
+    }
+  });
+
+  // ---------- keyboard ----------
+  const KEYMODE = { z: 'normal', x: 'corner', c: 'centre', v: 'colour' };
+  function modeFromMods(e) {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey) return 'colour';
+    if (e.ctrlKey || e.metaKey) return 'centre';
+    if (e.shiftKey) return 'corner';
+    if (e.altKey) return 'colour';
+    return null;
+  }
+  document.addEventListener('keydown', e => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
+    if (!document.getElementById('scrim').hidden) { if (e.key === 'Escape') closeSheet(); return; }
+    if (!game) return;
+    const k = e.key.toLowerCase();
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+    if ((mod && k === 'y') || (mod && e.shiftKey && k === 'z')) { e.preventDefault(); redo(); return; }
+    if (mod && k === 'a') { e.preventDefault(); sel = new Set([...Array(81).keys()]); render(); return; }
+    const m = /^(Digit|Numpad)([1-9])$/.exec(e.code);
+    if (m) { e.preventDefault(); inputDigit(+m[2], modeFromMods(e)); return; }
+    if (!mod && !e.altKey && KEYMODE[k]) { e.preventDefault(); setMode(KEYMODE[k]); return; }
+    if (k === ' ' && !mod) { e.preventDefault(); setMode(MODES[(MODES.indexOf(mode) + 1) % 4]); return; }
+    if (k === 'backspace' || k === 'delete' || e.code === 'Digit0' || e.code === 'Numpad0') { e.preventDefault(); deleteSel(); return; }
+    if (k === 'escape') { if (hint) closeHint(); else { sel.clear(); render(); } return; }
+    const arrows = { arrowup: [-1, 0], arrowdown: [1, 0], arrowleft: [0, -1], arrowright: [0, 1] };
+    if (arrows[k]) {
+      e.preventDefault();
+      const cur = sel.size ? [...sel][sel.size - 1] : 40;
+      const r = (ROW[cur] + arrows[k][0] + 9) % 9, c = (COL[cur] + arrows[k][1] + 9) % 9;
+      const n = r * 9 + c;
+      if (e.shiftKey || mod) sel.add(n); else sel = new Set([n]);
+      // keep insertion order so the moved-to cell is last
+      sel.delete(n); sel.add(n);
+      render();
+      return;
+    }
+    if (k === 'h' && !mod) { openHint(); return; }
+    if (k === 'p' && !mod) { togglePause(); return; }
+  });
+  // temporary mode indication while holding modifiers
+  function syncTemp(e) {
+    const t = modeFromMods(e);
+    if (t !== tempMode) { tempMode = t; updatePad(); }
+  }
+  document.addEventListener('keydown', e => { if (['Shift', 'Control', 'Meta', 'Alt'].includes(e.key)) syncTemp(e); });
+  document.addEventListener('keyup', e => { if (['Shift', 'Control', 'Meta', 'Alt'].includes(e.key)) syncTemp(e); });
+  window.addEventListener('blur', () => { if (tempMode) { tempMode = null; updatePad(); } });
+
+  // ---------- timer & pause ----------
+  const timerEl = document.getElementById('timer');
+  function fmt(t) {
+    const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0');
+  }
+  function updateTimer() {
+    timerEl.textContent = game ? fmt(game.time) : '0:00';
+    timerEl.classList.toggle('off', !settings.timer);
+  }
+  let tick = 0;
+  setInterval(() => {
+    if (!game || game.solved || paused || generating || document.visibilityState !== 'visible') return;
+    game.time++;
+    updateTimer();
+    if (++tick % 5 === 0) save();
+  }, 1000);
+  const cover = document.getElementById('cover');
+  function showCover(html, onClick) {
+    cover.innerHTML = html; cover.hidden = false;
+    cover.onclick = onClick || null;
+  }
+  function hideCover() { cover.hidden = true; cover.onclick = null; }
+  function togglePause() {
+    if (!game || game.solved || generating) return;
+    paused = !paused;
+    document.getElementById('pause-icon').innerHTML = paused ? '<path d="M8 5l11 7-11 7z"/>' : '<path d="M8 5v14M16 5v14"/>';
+    document.getElementById('btn-pause').setAttribute('aria-label', paused ? 'Jatka' : 'Tauko');
+    if (paused) { closeHint(); showCover('<h2>Tauko</h2><p>Jatka napauttamalla</p>', togglePause); }
+    else hideCover();
+    save();
+  }
+  document.getElementById('btn-pause').addEventListener('click', togglePause);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') save(); });
+
+  // ---------- toast ----------
+  const toastEl = document.getElementById('toast');
+  let toastT = 0;
+  function flash(msg, ms) {
+    toastEl.textContent = msg; toastEl.hidden = false;
+    clearTimeout(toastT); toastT = setTimeout(() => { toastEl.hidden = true; }, ms || 2200);
+  }
+
+  // ---------- check & completion ----------
+  function wrongCells() {
+    const w = [];
+    for (let i = 0; i < 81; i++) if (game.val[i] && game.val[i] !== +game.solution[i]) w.push(i);
+    return w;
+  }
+  function check() {
+    if (!game || game.solved) return;
+    const w = wrongCells();
+    let empty = 0; for (let i = 0; i < 81; i++) if (!digitAt(i)) empty++;
+    if (w.length) {
+      wrongMarks = new Set(w); render();
+      flash(w.length === 1 ? '1 virheellinen numero' : w.length + ' virheellistä numeroa', 2800);
+    } else {
+      flash(empty ? 'Ei virheitä. Tyhjiä ruutuja ' + empty + '.' : 'Kaikki oikein!');
+    }
+  }
+  function checkComplete() {
+    if (!game || game.solved) return;
+    for (let i = 0; i < 81; i++) if (!digitAt(i)) return;
+    if (wrongCells().length) { flash('Ruudukko on täynnä, mutta siinä on virheitä.', 2800); return; }
+    game.solved = true;
+    sel.clear(); closeHint(); render(); save();
+    const L = game.custom ? 'custom' : game.level;
+    const st = stats[L] || { solved: 0, best: null };
+    const isBest = game.hints === 0 && (st.best == null || game.time < st.best);
+    st.solved++; if (isBest) st.best = game.time;
+    stats[L] = st; store(STORE + '.stats', stats);
+    setTimeout(() => openWin(isBest), 350);
+  }
+
+  // ---------- generation ----------
+  let worker = null, reqId = 0;
+  const pending = new Map();
+  function initWorker() {
+    try {
+      const src = document.getElementById('engine-src').textContent +
+        '\n;self.onmessage=function(e){var r=null;try{r=self.SudokuEngine.generate(e.data.level,e.data.seed,600);}catch(err){}self.postMessage({id:e.data.id,r:r});};';
+      const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+      worker = new Worker(url);
+      worker.onmessage = e => {
+        const p = pending.get(e.data.id);
+        if (!p) return;
+        pending.delete(e.data.id); clearTimeout(p.to);
+        p.resolve(e.data.r || E.generate(p.level, null, 600));
+      };
+      worker.onerror = () => {
+        worker = null;
+        for (const [id, p] of pending) { pending.delete(id); clearTimeout(p.to); p.resolve(E.generate(p.level, null, 600)); }
+      };
+    } catch (e) { worker = null; }
+  }
+  function genAsync(level) {
+    return new Promise(resolve => {
+      if (worker) {
+        const id = ++reqId;
+        const p = { level: level, resolve: resolve };
+        p.to = setTimeout(() => { if (pending.has(id)) { pending.delete(id); resolve(E.generate(level, null, 600)); } }, 20000);
+        pending.set(id, p);
+        worker.postMessage({ id: id, level: level, seed: (Math.random() * 4294967296) >>> 0 });
+      } else {
+        setTimeout(() => resolve(E.generate(level, null, 600)), 40);
+      }
+    });
+  }
+  const refilling = {};
+  function refill(level) {
+    if (cache[level] || refilling[level]) return;
+    refilling[level] = true;
+    genAsync(level).then(r => {
+      refilling[level] = false;
+      if (r) { cache[level] = { puzzle: r.puzzle, solution: r.solution, level: level }; store(STORE + '.cache', cache); }
+    });
+  }
+
+  function startGame(p) {
+    game = newGameState(p);
+    sel = new Set(); undoStack = []; redoStack = []; wrongMarks = null; paused = false;
+    closeHint(); hideCover(); setMode(mode);
+    document.getElementById('pause-icon').innerHTML = '<path d="M8 5v14M16 5v14"/>';
+    updateHeader(); render(); updatePad(); updateTimer(); save();
+  }
+  async function newGame(level) {
+    closeSheet();
+    if (cache[level]) {
+      const p = cache[level]; cache[level] = null; store(STORE + '.cache', cache);
+      startGame(p); refill(level); return;
+    }
+    generating = true; closeHint();
+    showCover('<div class="spinner"></div><p>Luodaan pulmaa: ' + LEVELS[level].name + '</p>');
+    const r = await genAsync(level);
+    generating = false;
+    if (!r) { hideCover(); flash('Pulman luonti epäonnistui. Yritä uudelleen.'); return; }
+    startGame({ puzzle: r.puzzle, solution: r.solution, level: level });
+    refill(level);
+  }
+  function updateHeader() {
+    const el = document.getElementById('level-name');
+    if (!game) { el.textContent = ''; return; }
+    el.textContent = game.custom ? 'Oma pulma · ' + (game.level <= 5 ? LEVELS[game.level].name : 'yli Mestarin') : LEVELS[game.level].name;
+  }
+
+  // ---------- hints ----------
+  const hintEl = document.getElementById('hint');
+  function currentState() {
+    const g = new Int8Array(81);
+    for (let i = 0; i < 81; i++) g[i] = digitAt(i);
+    const s = E.makeState(g);
+    for (const k of game.known) {
+      const i = (k / 9) | 0, d = (k % 9) + 1;
+      if (!s.grid[i]) s.cand[i] &= ~(1 << (d - 1));
+    }
+    return s;
+  }
+  function computeHint(skipMarks) {
+    const w = wrongCells();
+    if (w.length) return { kind: 'error', cells: w };
+    if (!skipMarks) for (let i = 0; i < 81; i++) {
+      if (digitAt(i) || !game.centre[i] || game.corner[i]) continue;
+      if (!(game.centre[i] & (1 << (+game.solution[i] - 1)))) return { kind: 'markerror', cell: i };
+    }
+    const s = currentState();
+    const learned = [];
+    for (let guard = 0; guard < 400; guard++) {
+      if (E.isSolved(s)) return { kind: 'solved' };
+      const st = E.findStep(s, 5);
+      if (!st) return { kind: 'stuck', learned };
+      if (!st.place && st.elim.length && st.elim.every(([i, d]) => game.centre[i] && !(game.centre[i] & (1 << (d - 1))))) {
+        // the player has already made this elimination in their centre marks
+        E.applyStep(s, st);
+        for (const [i, d] of st.elim) learned.push(i * 9 + d - 1);
+        continue;
+      }
+      return { kind: 'step', step: st, learned };
+    }
+    return { kind: 'stuck', learned };
+  }
+  function overlayFor(st) {
+    const h = st.hl || {};
+    return {
+      unit: h.unit && h.unit.length ? h.unit : null,
+      cells: h.chain ? null : h.cells,
+      cands: h.chain ? null : h.cands,
+      chain: h.chain || null,
+      links: h.chain ? h.links : (h.links || null),
+      blockers: h.blockers || null,
+      elim: st.elim,
+      place: st.place || null
+    };
+  }
+  const X_ICON = '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+  function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+  function openHint(skipMarks) {
+    if (!game || game.solved || paused || generating) return;
+    const h = computeHint(skipMarks === true);
+    hint = Object.assign({ stage: 1 }, h);
+    if (h.learned && h.learned.length) {
+      for (const k of h.learned) if (!game.known.includes(k)) game.known.push(k);
+      save();
+    }
+    renderHint();
+  }
+  function closeHint() {
+    if (!hint) return;
+    hint = null; hintEl.hidden = true; hintEl.innerHTML = '';
+    render();
+  }
+  function hintShell(tag, title, body, buttons) {
+    hintEl.innerHTML =
+      '<div class="hint-head"><div class="hint-title"><span class="hint-tag">' + esc(tag) + '</span>' + esc(title) + '</div>' +
+      '<button class="close-x" data-act="close" aria-label="Sulje vihje">' + X_ICON + '</button></div>' +
+      '<div class="hint-body">' + body + '</div>' +
+      '<div class="hint-foot">' + buttons + '</div>';
+    hintEl.hidden = false;
+    fitHint();
+  }
+  function fitHint() {
+    if (hintEl.hidden) return;
+    const top = hintEl.getBoundingClientRect().top;
+    const avail = Math.max(200, window.innerHeight - top - 12);
+    hintEl.style.maxHeight = avail + 'px';
+  }
+  window.addEventListener('resize', fitHint);
+  function renderHint() {
+    if (!hint) return;
+    const k = hint.kind;
+    if (k === 'error') {
+      hintShell('Tarkistus', hint.cells.length === 1 ? 'Laudalla on virhe' : 'Laudalla on ' + hint.cells.length + ' virhettä',
+        esc('Ennen seuraavaa askelta kannattaa korjata virheet: ' + (hint.cells.length === 1 ? 'yksi syöttämäsi numero on' : hint.cells.length + ' syöttämääsi numeroa ovat') + ' väärin.'),
+        '<button class="btn grow" data-act="show-wrong">Näytä</button><button class="btn primary grow" data-act="clear-wrong">Poista virheelliset</button>');
+    } else if (k === 'markerror') {
+      hintShell('Tarkistus', 'Merkinnöistä puuttuu oikea numero',
+        esc('Ruudun ' + E.cellName(hint.cell) + ' keskimerkinnöistä on karsittu numero, joka kuuluu ruutuun. Tarkista, mikä päättely poisti sen.'),
+        '<button class="btn grow" data-act="show-markerror">Näytä ruutu</button><button class="btn primary grow" data-act="skip-marks">Jatka vihjeeseen</button>');
+    } else if (k === 'solved') {
+      hintShell('Vihje', 'Kaikki ratkaistu', 'Ruudukko on valmis.', '<button class="btn grow" data-act="close">Sulje</button>');
+    } else if (k === 'stuck') {
+      hintShell('Vihje', 'Ei tunnettua askelta',
+        esc('Vihjejärjestelmän tekniikat eivät löydä seuraavaa askelta tästä tilanteesta. Voit paljastaa yhden ruudun.'),
+        '<button class="btn primary grow" data-act="reveal">Paljasta ruutu</button>');
+    } else if (k === 'step') {
+      const st = hint.step;
+      if (hint.stage === 1) {
+        hintShell('Vihje · taso ' + st.level, 'Mihin katsoa', esc(st.nudge),
+          '<button class="btn primary grow" data-act="explain">Näytä ratkaisutapa</button>');
+      } else if (hint.stage === 2) {
+        const body = esc(st.text) + (st.notation ? '<span class="notation">' + esc(st.notation) + '</span>' : '');
+        hintShell('Tekniikka · taso ' + st.level, st.name, body,
+          '<button class="btn grow" data-act="close">Sulje</button><button class="btn primary grow" data-act="apply">' + (st.place ? 'Sijoita ' + st.place[1] : 'Poista ehdokkaat') + '</button>');
+      } else {
+        hintShell('Vihje', 'Askel tehty', esc(st.place ? E.cellName(st.place[0]) + ' = ' + st.place[1] + '.' : 'Ehdokkaat poistettu merkinnöistä ja vihjeiden muistista.'),
+          '<button class="btn grow" data-act="close">Sulje</button><button class="btn primary grow" data-act="next">Seuraava vihje</button>');
+      }
+    }
+    render();
+  }
+  hintEl.addEventListener('click', e => {
+    const b = e.target.closest('[data-act]');
+    if (!b || !hint) return;
+    const act = b.dataset.act;
+    if (act === 'close') { closeHint(); return; }
+    if (act === 'show-wrong') { wrongMarks = new Set(hint.cells); sel = new Set(hint.cells); render(); return; }
+    if (act === 'clear-wrong') {
+      const cells = hint.cells;
+      commit(() => { cells.forEach(i => { game.val[i] = 0; }); return true; });
+      return;
+    }
+    if (act === 'show-markerror') { sel = new Set([hint.cell]); render(); return; }
+    if (act === 'skip-marks') { openHint(true); return; }
+    if (act === 'reveal') {
+      // choose the empty cell with fewest candidates
+      const s = currentState(); let best = -1, bn = 10;
+      for (let i = 0; i < 81; i++) if (!s.grid[i] && E.POP[s.cand[i]] < bn) { bn = E.POP[s.cand[i]]; best = i; }
+      if (best < 0) return;
+      const d = +game.solution[best];
+      game.hints++;
+      commit(() => { game.val[best] = d; if (settings.autoClean) cleanPeers(best, d); return true; });
+      sel = new Set([best]); render();
+      return;
+    }
+    if (act === 'explain') {
+      hint.stage = 2; hint.overlay = overlayFor(hint.step); game.hints++; save();
+      renderHint(); return;
+    }
+    if (act === 'apply') {
+      const st = hint.step;
+      commit(() => {
+        if (st.place) {
+          const [i, d] = st.place;
+          game.val[i] = d;
+          if (settings.autoClean) cleanPeers(i, d);
+        }
+        for (const [i, d] of st.elim) {
+          const m = ~(1 << (d - 1));
+          game.centre[i] &= m; game.corner[i] &= m;
+          const key = i * 9 + d - 1;
+          if (!game.known.includes(key)) game.known.push(key);
+        }
+        return true;
+      }, true);
+      if (game.solved) return;
+      if (st.place) sel = new Set([st.place[0]]);
+      hint.stage = 3; hint.overlay = null;
+      renderHint(); return;
+    }
+    if (act === 'next') { openHint(); return; }
+  });
+
+  // ---------- sheets ----------
+  const scrim = document.getElementById('scrim');
+  function openSheet(html) {
+    scrim.innerHTML = '<div class="sheet" role="dialog" aria-modal="true">' + html + '</div>';
+    scrim.hidden = false;
+    const f = scrim.querySelector('button, select, textarea');
+    if (f) f.focus({ preventScroll: true });
+  }
+  function closeSheet() { scrim.hidden = true; scrim.innerHTML = ''; }
+  scrim.addEventListener('pointerdown', e => { if (e.target === scrim) closeSheet(); });
+  const head = title => '<div class="sheet-head"><h2>' + esc(title) + '</h2><button class="close-x" data-act="close-sheet" aria-label="Sulje">' + X_ICON + '</button></div>';
+
+  function openNew() {
+    let html = head('Uusi pulma') + '<div class="levels">';
+    for (const L of [1, 2, 3, 4, 5]) {
+      const st = stats[L];
+      let pips = '<span class="pips" aria-hidden="true">';
+      for (let k = 1; k <= 5; k++) pips += '<span class="pip' + (k <= L ? ' on' : '') + '"></span>';
+      pips += '</span>';
+      html += '<button class="level-btn" data-level="' + L + '">' + pips +
+        '<span><span class="lv-name">' + LEVELS[L].name + '</span><span class="lv-desc">' + LEVELS[L].desc + '</span></span>' +
+        '<span class="lv-stat">' + (st && st.solved ? 'Ratkaistu ' + st.solved + '<br>Paras ' + fmt(st.best) : '') + '</span></button>';
+    }
+    html += '</div>';
+    html += '<div class="row-btns"><button class="btn grow" data-act="restart">Aloita nykyinen alusta</button></div>';
+    html += '<details><summary>Tuo oma pulma</summary><p class="note">Liitä 81 merkkiä rivi kerrallaan. Tyhjä ruutu on piste tai 0.</p>' +
+      '<textarea id="import-text" spellcheck="false" placeholder="7....539....8....7.29......."></textarea>' +
+      '<p class="note" id="import-msg"></p><div class="row-btns"><button class="btn primary" data-act="import">Aloita tämä pulma</button></div></details>';
+    openSheet(html);
+  }
+  function importPuzzle() {
+    const txt = (document.getElementById('import-text').value || '').replace(/[^0-9.]/g, '').replace(/0/g, '.');
+    const msg = document.getElementById('import-msg');
+    msg.classList.add('err');
+    if (txt.length !== 81) { msg.textContent = 'Pulmassa pitää olla 81 merkkiä, nyt ' + txt.length + '.'; return; }
+    const g = E.fromStr(txt);
+    const sol = new Int8Array(81);
+    const n = E.countSolutions(g, 2, sol);
+    if (n === 0) { msg.textContent = 'Pulmalla ei ole ratkaisua. Tarkista numerot.'; return; }
+    if (n > 1) { msg.textContent = 'Pulmalla on useampi ratkaisu, joten sitä ei voi ratkaista logiikalla.'; return; }
+    const gr = E.grade(g, 5);
+    closeSheet();
+    startGame({ puzzle: txt, solution: E.toStr(sol), level: gr.solved ? gr.level : 6, custom: true });
+    flash('Pulma tuotu: ' + (gr.solved ? LEVELS[gr.level].name : 'vaikeampi kuin Mestari'));
+  }
+
+  function openSettings() {
+    const sw = (id, label, help) => '<div class="setting"><label for="set-' + id + '">' + label + (help ? '<small>' + help + '</small>' : '') + '</label>' +
+      '<input class="switch" type="checkbox" id="set-' + id + '" data-set="' + id + '"' + (settings[id] ? ' checked' : '') + '></div>';
+    let html = head('Asetukset');
+    html += '<div>' +
+      sw('conflicts', 'Näytä ristiriidat', 'Samat numerot samalla rivillä, sarakkeessa tai laatikossa punaisella.') +
+      sw('autoClean', 'Poista merkinnät automaattisesti', 'Numeron sijoitus poistaa sen kulma- ja keskimerkinnöistä naapureilta.') +
+      sw('sameDigit', 'Korosta samat numerot', 'Valitun ruudun numero korostuu koko ruudukossa.') +
+      sw('peers', 'Korosta rivi, sarake ja laatikko') +
+      sw('timer', 'Näytä ajastin') +
+      '<div class="setting"><label for="set-theme">Teema</label><select id="set-theme">' +
+      [['system', 'Laitteen mukaan'], ['light', 'Vaalea'], ['dark', 'Tumma']].map(([v, l]) => '<option value="' + v + '"' + (settings.theme === v ? ' selected' : '') + '>' + l + '</option>').join('') +
+      '</select></div></div>';
+    html += '<h3>Työkalut</h3><div class="row-btns">' +
+      '<button class="btn" data-act="fill-cands">Täytä ehdokkaat keskelle</button>' +
+      '<button class="btn" data-act="clear-marks">Tyhjennä merkinnät</button>' +
+      '<button class="btn" data-act="clear-colours">Tyhjennä värit</button></div>';
+    html += '<h3>Ohjeet</h3><dl class="keys">' +
+      '<dt>Napautus</dt><dd>Valitse ruutu</dd>' +
+      '<dt>Veto</dt><dd>Valitse useita ruutuja</dd>' +
+      '<dt>Pitkä painallus</dt><dd>Lisää ruutu valintaan (tai poista siitä)</dd>' +
+      '<dt>Kaksoisnapautus</dt><dd>Valitse kaikki saman numeron ruudut</dd>' +
+      '<dt>1–9</dt><dd>Syötä valitussa tilassa</dd>' +
+      '<dt>Shift + 1–9</dt><dd>Kulmamerkintä</dd>' +
+      '<dt>Ctrl + 1–9</dt><dd>Keskimerkintä</dd>' +
+      '<dt>Z X C V</dt><dd>Numero, kulma, keski, väri</dd>' +
+      '<dt>Välilyönti</dt><dd>Seuraava tila</dd>' +
+      '<dt>Ctrl/Shift + klikkaus</dt><dd>Lisää valintaan</dd>' +
+      '<dt>Nuolet</dt><dd>Liiku (Shift lisää valintaan)</dd>' +
+      '<dt>Ctrl+Z / Ctrl+Y</dt><dd>Kumoa / tee uudelleen</dd>' +
+      '<dt>H / P</dt><dd>Vihje / tauko</dd>' +
+      '</dl><p class="note">Ruudut nimetään vihjeissä muodossa R3S5 = rivi 3, sarake 5. Laatikot numeroidaan 1–9 vasemmalta oikealle, ylhäältä alas.</p>';
+    openSheet(html);
+  }
+  function applyTheme() {
+    const r = document.documentElement;
+    if (settings.theme === 'system') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', settings.theme);
+  }
+  scrim.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset && t.dataset.set) {
+      settings[t.dataset.set] = t.checked; store(STORE + '.settings', settings);
+      updateTimer(); render();
+    } else if (t.id === 'set-theme') {
+      settings.theme = t.value; store(STORE + '.settings', settings); applyTheme();
+    }
+  });
+  let restartArmed = 0;
+  scrim.addEventListener('click', e => {
+    const b = e.target.closest('[data-act], [data-level]');
+    if (!b) return;
+    if (b.dataset.level) { newGame(+b.dataset.level); return; }
+    const act = b.dataset.act;
+    if (act === 'close-sheet') closeSheet();
+    else if (act === 'import') importPuzzle();
+    else if (act === 'restart') {
+      if (!game) return;
+      if (!restartArmed) { restartArmed = 1; b.textContent = 'Vahvista: tyhjennä kaikki'; b.classList.add('danger'); setTimeout(() => { restartArmed = 0; if (b.isConnected) { b.textContent = 'Aloita nykyinen alusta'; b.classList.remove('danger'); } }, 3000); return; }
+      restartArmed = 0;
+      startGame({ puzzle: game.puzzle, solution: game.solution, level: game.level, custom: game.custom });
+      closeSheet();
+    }
+    else if (act === 'fill-cands') {
+      closeSheet();
+      const s = currentState();
+      commit(() => { for (let i = 0; i < 81; i++) if (!digitAt(i)) { game.centre[i] = s.cand[i]; } return true; });
+    }
+    else if (act === 'clear-marks') { closeSheet(); commit(() => { game.corner.fill(0); game.centre.fill(0); return true; }); }
+    else if (act === 'clear-colours') { closeSheet(); commit(() => { game.colours = game.colours.map(() => []); return true; }); }
+    else if (act === 'win-same') newGame(game.level <= 5 && !game.custom ? game.level : 2);
+    else if (act === 'win-choose') openNew();
+  });
+  function openWin(isBest) {
+    const lvl = game.custom ? 'Oma pulma' : LEVELS[game.level].name;
+    let html = head('Ratkaistu') +
+      '<p class="win-time">' + fmt(game.time) + '</p>' +
+      '<div class="win-meta"><span>Taso <b>' + esc(lvl) + '</b></span><span>Vihjeitä <b>' + game.hints + '</b></span>' + (isBest ? '<span><b>Uusi ennätys</b></span>' : '') + '</div>' +
+      '<div class="row-btns"><button class="btn primary grow" data-act="win-same">' + (game.custom ? 'Uusi pulma' : 'Uusi: ' + esc(lvl)) + '</button><button class="btn grow" data-act="win-choose">Valitse taso</button></div>';
+    openSheet(html);
+  }
+
+  document.getElementById('btn-new').addEventListener('click', openNew);
+  document.getElementById('btn-settings').addEventListener('click', openSettings);
+  document.getElementById('btn-hint').addEventListener('click', () => { if (hint) closeHint(); else openHint(); });
+  document.getElementById('btn-hint').addEventListener('pointerdown', e => e.preventDefault());
+  document.getElementById('btn-check').addEventListener('click', check);
+
+  // ---------- boot ----------
+  function boot(data) {
+    applyTheme();
+    const savedGame = (data && data.game) || load(STORE + '.game', null);
+    if (savedGame && savedGame.puzzle) {
+      try { game = deserialize(savedGame); } catch (e) { game = null; }
+    }
+    if (!game) game = newGameState(INITIAL.start);
+    if (data && data.sel) sel = new Set(data.sel);
+    updateHeader(); render(); updatePad(); updateTimer();
+    initWorker();
+    setTimeout(() => { for (const L of [1, 2, 3, 4, 5]) refill(L); }, 1500);
+  }
+  const hot = window.claude && window.claude.hot;
+  if (hot && typeof hot.snapshot === 'function') {
+    try { hot.snapshot(() => ({ game: serialize(), sel: [...sel] })); } catch (e) { /* ignore */ }
+  }
+  if (hot && typeof hot.ready === 'function') hot.ready(boot);
+  else boot((hot && hot.data) || {});
+})();
+
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
