@@ -1354,6 +1354,8 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
       st.setProperty('--hl-same', 'rgba(' + hl[2] + ', ' + (dark ? 0.55 : 0.42) + ')');
       st.setProperty('--hl-cand', 'rgba(' + hl[2] + ', ' + (dark ? 0.16 : 0.12) + ')');
     }
+    const cand = HL_COLORS.find(x => x[0] === settings.candColor);
+    if (cand && cand[2]) st.setProperty('--hl-cand', 'rgba(' + cand[2] + ', ' + (dark ? 0.55 : 0.42) + ')');
     const pen = PEN_COLORS.find(x => x[0] === settings.penColor);
     if (pen && pen[2]) { st.setProperty('--pen', pen[2]); st.setProperty('--pencil', pen[2]); }
   }
@@ -1376,7 +1378,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   }
   function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } }
 
-  const DEFAULT_SETTINGS = { conflicts: true, autoClean: true, sameDigit: true, peers: false, timer: true, theme: 'system', boardBg: '', hlColor: '', penColor: '', tapMode: 'select' };
+  const DEFAULT_SETTINGS = { conflicts: true, autoClean: true, sameDigit: true, peers: false, timer: true, theme: 'system', boardBg: '', hlColor: '', candColor: '', penColor: '', tapMode: 'select' };
   let settings = Object.assign({}, DEFAULT_SETTINGS, load(STORE + '.settings', {}));
   let stats = load(STORE + '.stats', {});
   let cache = load(STORE + '.cache', null);
@@ -2300,6 +2302,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     const autoBox = '<span class="sv" style="background:repeating-linear-gradient(135deg,var(--surface) 0 6px,var(--surface-2) 6px 12px)">A</span>';
     let colours = '<h3>Ruudukon tausta</h3>' + picker('boardBg', BOARD_BG, x => x[2] ? '<span class="sv" style="background:' + x[2] + '"></span>' : autoBox);
     colours += '<h3>Korostusväri</h3>' + picker('hlColor', HL_COLORS, x => x[2] ? '<span class="sv" style="background:' + paperNow + ';background-image:linear-gradient(rgba(' + x[2] + ',0.45),rgba(' + x[2] + ',0.45));color:var(--ink)">7</span>' : autoBox);
+    colours += '<h3>Ehdokkaiden korostusväri</h3>' + picker('candColor', HL_COLORS, x => x[2] ? '<span class="sv" style="background:' + paperNow + ';background-image:linear-gradient(rgba(' + x[2] + ',0.45),rgba(' + x[2] + ',0.45));color:var(--pencil);font-size:13px">127</span>' : autoBox);
     colours += '<h3>Numeroiden väri</h3>' + picker('penColor', PEN_COLORS, x => x[2] ? '<span class="sv" style="background:' + paperNow + ';color:' + x[2] + '">7</span>' : autoBox);
     html = html.replace('<h3>Teema</h3>', colours + '<h3>Sovelluksen teema</h3>');
     html += '<h3>Työkalut</h3><div class="row-btns">' +
