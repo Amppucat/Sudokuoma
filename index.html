@@ -102,7 +102,7 @@ button:focus-visible, [tabindex]:focus-visible, select:focus-visible, textarea:f
   padding-block: 10px 14px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  --board: max(260px, min(100vw - 32px, 100dvh - 378px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 620px));
+  --board: max(260px, min(100vw - 32px, 100dvh - 426px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 620px));
 }
 
 /* ---------- top bar ---------- */
@@ -242,6 +242,18 @@ button:focus-visible, [tabindex]:focus-visible, select:focus-visible, textarea:f
 .key:active, .mode:active, .side-btn:active { transform: translateY(1px); }
 .key.done { color: var(--muted); opacity: 0.45; }
 .key.focus { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.key.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.key.active .sw { outline: 2px solid var(--accent-ink); }
+.side-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.tapbar { display: grid; grid-template-columns: 1fr 1fr; }
+.tapmode { border: 1px solid var(--grid); background: var(--paper); height: 40px; padding: 0 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-left: -1px; border-radius: 0; color: var(--ink); }
+.tapmode:first-child { margin-left: 0; }
+.tapmode[aria-checked="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.swatch { border: 2px solid var(--grid); background: var(--surface); border-radius: 2px; padding: 4px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; align-items: stretch; font-size: 11.5px; color: var(--ink); min-width: 0; }
+.swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.swatch .sv { height: 34px; border: 1px solid var(--grid); display: flex; align-items: center; justify-content: center; font-family: var(--font-digit); font-size: 20px; font-weight: 500; }
+.swatch .sn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
 .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
 .theme-btn { border: 2px solid var(--grid); border-radius: 2px; padding: 6px; cursor: pointer; background: var(--surface); display: flex; flex-direction: column; gap: 5px; align-items: stretch; font-size: 12.5px; }
 .theme-btn[aria-pressed="true"] { border-color: var(--accent); }
@@ -417,6 +429,10 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
             <span>Uudelleen</span>
           </button>
         </div>
+      </div>
+      <div class="tapbar" role="radiogroup" aria-label="Napautuksen toiminto">
+        <button class="tapmode" role="radio" data-tap="select" aria-checked="true">Valitse ruutuja</button>
+        <button class="tapmode" role="radio" data-tap="write" aria-checked="false">Kirjoita numeroita</button>
       </div>
       <div class="hint" id="hint" hidden aria-live="polite"></div>
     </section>
@@ -1306,6 +1322,42 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     light: { bg: '#e8ecf2', paper: '#fbfcfe', ink: '#131b29', pen: '#1f45b2', 'grid-strong': '#253043', 'hl-same': 'rgba(31, 69, 178, 0.38)' },
     dark: { bg: '#10141b', paper: '#181e27', ink: '#e7ecf3', pen: '#8eb0ff', 'grid-strong': '#8d99ab', 'hl-same': 'rgba(142, 176, 255, 0.45)' }
   };
+  const BOARD_BG = [['', 'Oletus', null], ['white', 'Valkoinen', '#ffffff'], ['cream', 'Kerma', '#fbf5e6'], ['sand', 'Hiekka', '#efe5cf'], ['grey', 'Harmaa', '#e7eaee'],
+    ['ice', 'Jää', '#e6eff9'], ['mint', 'Minttu', '#e5f3ea'], ['slate', 'Liuske', '#1b2230'], ['navy', 'Yö', '#101a33'], ['black', 'Musta', '#000000']];
+  const HL_COLORS = [['', 'Oletus', null], ['blue', 'Sininen', '31, 69, 178'], ['yellow', 'Keltainen', '240, 185, 0'], ['green', 'Vihreä', '20, 150, 90'], ['orange', 'Oranssi', '235, 115, 20'],
+    ['red', 'Punainen', '210, 45, 55'], ['pink', 'Pinkki', '220, 60, 150'], ['violet', 'Violetti', '110, 60, 200'], ['teal', 'Turkoosi', '0, 150, 160'], ['grey', 'Harmaa', '105, 115, 130']];
+  const PEN_COLORS = [['', 'Oletus', null], ['blue', 'Sininen', '#1f45b2'], ['sky', 'Taivas', '#5b8cff'], ['black', 'Musta', '#111111'], ['white', 'Valkoinen', '#f2f2f2'],
+    ['red', 'Punainen', '#c0392b'], ['green', 'Vihreä', '#13804f'], ['violet', 'Violetti', '#6a3dc4'], ['orange', 'Oranssi', '#d9750b'], ['gold', 'Kulta', '#e0b440']];
+  function luminance(hex) {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i.exec(hex.trim());
+    if (!m) return 1;
+    const c = [m[1], m[2], m[3]].map(x => { const v = parseInt(x, 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function applyBoardColours() {
+    const st = document.getElementById('board-wrap').style;
+    ['--paper', '--ink', '--grid', '--grid-strong', '--hl-same', '--hl-cand', '--pen', '--pencil'].forEach(p => st.removeProperty(p));
+    const bg = BOARD_BG.find(x => x[0] === settings.boardBg);
+    let paper = bg && bg[2];
+    if (paper) {
+      const dk = luminance(paper) < 0.18;
+      st.setProperty('--paper', paper);
+      st.setProperty('--ink', dk ? '#eef1f6' : '#131b29');
+      st.setProperty('--grid', dk ? '#3a4556' : '#b4bdca');
+      st.setProperty('--grid-strong', dk ? '#9aa6b8' : '#253043');
+    } else {
+      paper = getComputedStyle(document.documentElement).getPropertyValue('--paper') || '#ffffff';
+    }
+    const dark = luminance(paper) < 0.18;
+    const hl = HL_COLORS.find(x => x[0] === settings.hlColor);
+    if (hl && hl[2]) {
+      st.setProperty('--hl-same', 'rgba(' + hl[2] + ', ' + (dark ? 0.55 : 0.42) + ')');
+      st.setProperty('--hl-cand', 'rgba(' + hl[2] + ', ' + (dark ? 0.16 : 0.12) + ')');
+    }
+    const pen = PEN_COLORS.find(x => x[0] === settings.penColor);
+    if (pen && pen[2]) { st.setProperty('--pen', pen[2]); st.setProperty('--pencil', pen[2]); }
+  }
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyBoardColours()); } catch (e) { /* ignore */ }
   (function injectPalettes() {
     let css = '';
     for (const k in PALETTES) {
@@ -1324,7 +1376,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   }
   function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore */ } }
 
-  const DEFAULT_SETTINGS = { conflicts: true, autoClean: true, sameDigit: true, peers: false, timer: true, theme: 'system' };
+  const DEFAULT_SETTINGS = { conflicts: true, autoClean: true, sameDigit: true, peers: false, timer: true, theme: 'system', boardBg: '', hlColor: '', penColor: '', tapMode: 'select' };
   let settings = Object.assign({}, DEFAULT_SETTINGS, load(STORE + '.settings', {}));
   let stats = load(STORE + '.stats', {});
   let cache = load(STORE + '.cache', null);
@@ -1333,7 +1385,9 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   // ---------- game state ----------
   let game = null;
   let sel = new Set();
-  let hlDigit = 0;          // digit highlighted from the keypad when no cell is selected
+  let hlDigit = 0;
+  let activeDigit = 0;       // write mode: 1-9 digit/colour, -1 eraser
+  let gesture = null;          // digit highlighted from the keypad when no cell is selected
   let mode = 'normal';
   let tempMode = null;
   let undoStack = [], redoStack = [];
@@ -1415,6 +1469,10 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     m = m || tempMode || mode;
     const cells = [...sel];
     if (!cells.length) { hlDigit = hlDigit === d ? 0 : d; render(); updatePad(); return; }
+    if (m !== 'colour' && cells.every(i => digitAt(i))) {
+      // every selected cell already holds a number: highlight the pressed digit instead
+      sel.clear(); hlDigit = d; render(); updatePad(); return;
+    }
     commit(() => {
       if (m === 'normal') {
         const t = cells.filter(i => !game.given[i]);
@@ -1620,7 +1678,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     b.style.gridColumn = String(((d - 1) % 3) + 1);
     b.style.gridRow = String((((d - 1) / 3) | 0) + 1);
     b.addEventListener('pointerdown', e => e.preventDefault());
-    b.addEventListener('click', () => { inputDigit(d); });
+    b.addEventListener('click', () => { keyPress(d); });
     pad.appendChild(b);
     keys.push(b);
   }
@@ -1638,9 +1696,12 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
         b.innerHTML = m === 'corner' ? '<span class="k-corner">' + d + '</span>' : m === 'centre' ? '<span class="k-centre">' + d + '</span>' : String(d);
         b.setAttribute('aria-label', (m === 'normal' ? 'Numero ' : m === 'corner' ? 'Kulmamerkintä ' : 'Keskimerkintä ') + d);
         b.classList.toggle('done', counts[d] >= 9);
-        b.classList.toggle('focus', hlDigit === d && !sel.size);
+        b.classList.toggle('focus', settings.tapMode !== 'write' && hlDigit === d && !sel.size);
       }
     });
+    keys.forEach((b, k) => b.classList.toggle('active', settings.tapMode === 'write' && activeDigit === k + 1));
+    document.getElementById('btn-del').classList.toggle('active', settings.tapMode === 'write' && activeDigit === -1);
+    document.querySelectorAll('.tapmode').forEach(b => b.setAttribute('aria-checked', String(b.dataset.tap === settings.tapMode)));
     document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === m)));
     document.getElementById('btn-undo').disabled = !undoStack.length;
     document.getElementById('btn-redo').disabled = !redoStack.length;
@@ -1650,7 +1711,69 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     b.addEventListener('pointerdown', e => e.preventDefault());
     b.addEventListener('click', () => setMode(b.dataset.mode));
   });
-  document.getElementById('btn-del').addEventListener('click', deleteSel);
+  document.getElementById('btn-del').addEventListener('click', () => {
+    if (settings.tapMode === 'write') { activeDigit = activeDigit === -1 ? 0 : -1; hlDigit = 0; render(); updatePad(); return; }
+    deleteSel();
+  });
+  function keyPress(d, m) {
+    if (settings.tapMode === 'write') {
+      activeDigit = activeDigit === d ? 0 : d;
+      hlDigit = activeDigit > 0 && (m || tempMode || mode) !== 'colour' ? activeDigit : 0;
+      render(); updatePad(); return;
+    }
+    inputDigit(d, m);
+  }
+  function setTapMode(t) {
+    settings.tapMode = t; store(STORE + '.settings', settings);
+    activeDigit = 0; gesture = null;
+    if (t === 'write') sel.clear();
+    render(); updatePad();
+  }
+  document.querySelectorAll('.tapmode').forEach(b => {
+    b.addEventListener('pointerdown', e => e.preventDefault());
+    b.addEventListener('click', () => setTapMode(b.dataset.tap));
+  });
+
+  // write mode: tapping or dragging over cells writes the active digit
+  function writeCell(cell) {
+    const g = gesture;
+    if (!g || g.touched.has(cell)) return;
+    g.touched.add(cell);
+    const m = tempMode || mode, d = activeDigit;
+    if (d === -1) {
+      if (m === 'colour') { if (game.colours[cell].length) { game.colours[cell] = []; g.changed = true; } return; }
+      if (game.given[cell]) return;
+      if (game.val[cell]) { game.val[cell] = 0; g.changed = true; }
+      else if (game.corner[cell] || game.centre[cell]) { game.corner[cell] = 0; game.centre[cell] = 0; g.changed = true; }
+      return;
+    }
+    if (m === 'normal') {
+      if (game.given[cell]) return;
+      if (!g.action) g.action = game.val[cell] === d ? 'remove' : 'add';
+      if (g.action === 'add' && game.val[cell] !== d) { game.val[cell] = d; if (settings.autoClean) cleanPeers(cell, d); g.changed = true; }
+      else if (g.action === 'remove' && game.val[cell] === d) { game.val[cell] = 0; g.changed = true; }
+    } else if (m === 'corner' || m === 'centre') {
+      if (game.given[cell] || game.val[cell]) return;
+      const arr = m === 'corner' ? game.corner : game.centre, b = 1 << (d - 1);
+      if (!g.action) g.action = arr[cell] & b ? 'remove' : 'add';
+      const next = g.action === 'add' ? arr[cell] | b : arr[cell] & ~b;
+      if (next !== arr[cell]) { arr[cell] = next; g.changed = true; }
+    } else if (m === 'colour') {
+      const a = game.colours[cell];
+      if (!g.action) g.action = a.includes(d) ? 'remove' : 'add';
+      if (g.action === 'add' && !a.includes(d)) { a.push(d); g.changed = true; }
+      else if (g.action === 'remove' && a.includes(d)) { game.colours[cell] = a.filter(x => x !== d); g.changed = true; }
+    }
+  }
+  function endGesture() {
+    const g = gesture; gesture = null;
+    if (!g || !g.changed) return;
+    undoStack.push(g.before);
+    if (undoStack.length > 600) undoStack.shift();
+    redoStack.length = 0; wrongMarks = null;
+    closeHint(); render(); updatePad(); save();
+    checkComplete();
+  }
   document.getElementById('btn-undo').addEventListener('click', undo);
   document.getElementById('btn-redo').addEventListener('click', redo);
   ['btn-del', 'btn-undo', 'btn-redo'].forEach(id => document.getElementById(id).addEventListener('pointerdown', e => e.preventDefault()));
@@ -1676,8 +1799,16 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     e.preventDefault();
     svg.focus({ preventScroll: true });
     try { svg.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    if (settings.tapMode === 'write') {
+      if (game.solved) return;
+      if (!activeDigit) { flash('Valitse ensin numero näppäimistöltä'); return; }
+      gesture = { id: e.pointerId, before: snap(), touched: new Set(), action: null, changed: false };
+      writeCell(cell); render(); updatePad();
+      return;
+    }
     const additive = e.ctrlKey || e.metaKey || e.shiftKey;
     const prev = new Set(sel);
+    const wasOnly = !additive && sel.size === 1 && sel.has(cell);
     const now = performance.now();
     // double tap: select all cells with same digit
     if (!additive && lastTap.cell === cell && now - lastTap.t < 320 && digitAt(cell)) {
@@ -1693,7 +1824,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     } else {
       sel = new Set([cell]);
     }
-    drag = { id: e.pointerId, start: cell, moved: false, removing: removing, timer: 0 };
+    drag = { id: e.pointerId, start: cell, moved: false, removing: removing, timer: 0, deselect: wasOnly };
     if (!additive && e.pointerType !== 'mouse') {
       drag.timer = setTimeout(() => {
         if (!drag || drag.moved) return;
@@ -1708,6 +1839,11 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     render();
   });
   svg.addEventListener('pointermove', e => {
+    if (gesture && e.pointerId === gesture.id) {
+      const c = cellFromPoint(e.clientX, e.clientY, true);
+      if (c >= 0 && !gesture.touched.has(c)) { writeCell(c); render(); }
+      return;
+    }
     if (!drag || e.pointerId !== drag.id) return;
     const cell = cellFromPoint(e.clientX, e.clientY, true);
     if (cell < 0) return;
@@ -1715,7 +1851,14 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     if (drag.removing) { if (sel.has(cell)) { sel.delete(cell); render(); } }
     else if (!sel.has(cell)) { sel.add(cell); render(); }
   });
-  const endDrag = e => { if (drag && e.pointerId === drag.id) { clearTimeout(drag.timer); drag = null; } };
+  const endDrag = e => {
+    if (gesture && e.pointerId === gesture.id) { endGesture(); return; }
+    if (drag && e.pointerId === drag.id) {
+      clearTimeout(drag.timer);
+      if (drag.deselect && !drag.moved && !drag.additive) { sel.clear(); render(); updatePad(); }
+      drag = null;
+    }
+  };
   svg.addEventListener('pointerup', endDrag);
   svg.addEventListener('pointercancel', endDrag);
 
@@ -1746,7 +1889,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     if ((mod && k === 'y') || (mod && e.shiftKey && k === 'z')) { e.preventDefault(); redo(); return; }
     if (mod && k === 'a') { e.preventDefault(); sel = new Set([...Array(81).keys()]); render(); return; }
     const m = /^(Digit|Numpad)([1-9])$/.exec(e.code);
-    if (m) { e.preventDefault(); inputDigit(+m[2], modeFromMods(e)); return; }
+    if (m) { e.preventDefault(); keyPress(+m[2], modeFromMods(e)); return; }
     if (!mod && !e.altKey && KEYMODE[k]) { e.preventDefault(); setMode(KEYMODE[k]); return; }
     if (k === ' ' && !mod) { e.preventDefault(); setMode(MODES[(MODES.indexOf(mode) + 1) % 4]); return; }
     if (k === 'backspace' || k === 'delete' || e.code === 'Digit0' || e.code === 'Numpad0') { e.preventDefault(); deleteSel(); return; }
@@ -2151,16 +2294,25 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
           : '<span class="tp" style="background:linear-gradient(135deg,#fbfcfe 50%,#181e27 50%);border-color:#8d99ab;color:#7a8597"><span>4</span><span></span><span>2</span></span>';
         return '<button class="theme-btn" data-theme-pick="' + k + '" aria-pressed="' + (settings.theme === k) + '">' + prev + PALETTES[k][1] + '</button>';
       }).join('') + '</div>';
+    const paperNow = getComputedStyle(document.getElementById('board-wrap')).getPropertyValue('--paper');
+    const picker = (key, list, render1) => '<div class="swatches">' + list.map(x =>
+      '<button class="swatch" data-pick="' + key + '" data-val="' + x[0] + '" aria-pressed="' + (settings[key] === x[0]) + '" aria-label="' + x[1] + '">' + render1(x) + '<span class="sn">' + x[1] + '</span></button>').join('') + '</div>';
+    const autoBox = '<span class="sv" style="background:repeating-linear-gradient(135deg,var(--surface) 0 6px,var(--surface-2) 6px 12px)">A</span>';
+    let colours = '<h3>Ruudukon tausta</h3>' + picker('boardBg', BOARD_BG, x => x[2] ? '<span class="sv" style="background:' + x[2] + '"></span>' : autoBox);
+    colours += '<h3>Korostusväri</h3>' + picker('hlColor', HL_COLORS, x => x[2] ? '<span class="sv" style="background:' + paperNow + ';background-image:linear-gradient(rgba(' + x[2] + ',0.45),rgba(' + x[2] + ',0.45));color:var(--ink)">7</span>' : autoBox);
+    colours += '<h3>Numeroiden väri</h3>' + picker('penColor', PEN_COLORS, x => x[2] ? '<span class="sv" style="background:' + paperNow + ';color:' + x[2] + '">7</span>' : autoBox);
+    html = html.replace('<h3>Teema</h3>', colours + '<h3>Sovelluksen teema</h3>');
     html += '<h3>Työkalut</h3><div class="row-btns">' +
       '<button class="btn" data-act="fill-cands">Täytä ehdokkaat keskelle</button>' +
       '<button class="btn" data-act="clear-marks">Tyhjennä merkinnät</button>' +
       '<button class="btn" data-act="clear-colours">Tyhjennä värit</button></div>';
     html += '<h3>Ohjeet</h3><dl class="keys">' +
-      '<dt>Napautus</dt><dd>Valitse ruutu</dd>' +
+      '<dt>Napautus</dt><dd>Valitse ruutu. Valitun ruudun uusi napautus poistaa valinnan.</dd>' +
+      '<dt>Kirjoitustila</dt><dd>Valitse numero näppäimistöltä ja napauta tai vedä ruutujen yli. Poista toimii pyyhekumina.</dd>' +
       '<dt>Veto</dt><dd>Valitse useita ruutuja</dd>' +
       '<dt>Pitkä painallus</dt><dd>Lisää ruutu valintaan (tai poista siitä)</dd>' +
       '<dt>Kaksoisnapautus</dt><dd>Valitse kaikki saman numeron ruudut</dd>' +
-      '<dt>1–9</dt><dd>Syötä valitussa tilassa. Ilman valintaa korostaa numeron ja sen ehdokkaat.</dd>' +
+      '<dt>1–9</dt><dd>Syötä valitussa tilassa. Jos ruutua ei ole valittu tai valituissa ruuduissa on jo numero, painallus korostaa numeron ja sen ehdokkaat.</dd>' +
       '<dt>Shift + 1–9</dt><dd>Kulmamerkintä</dd>' +
       '<dt>Ctrl + 1–9</dt><dd>Keskimerkintä</dd>' +
       '<dt>Z X C V</dt><dd>Numero, kulma, keski, väri</dd>' +
@@ -2177,6 +2329,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     const p = PALETTES[settings.theme] || PALETTES.system;
     if (p[0]) r.setAttribute('data-theme', p[0]); else r.removeAttribute('data-theme');
     if (p[2]) r.setAttribute('data-palette', settings.theme); else r.removeAttribute('data-palette');
+    applyBoardColours();
   }
   scrim.addEventListener('change', e => {
     const t = e.target;
@@ -2187,6 +2340,12 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   });
   let restartArmed = 0;
   scrim.addEventListener('click', e => {
+    const pk = e.target.closest('[data-pick]');
+    if (pk) {
+      settings[pk.dataset.pick] = pk.dataset.val; store(STORE + '.settings', settings); applyBoardColours();
+      scrim.querySelectorAll('[data-pick="' + pk.dataset.pick + '"]').forEach(x => x.setAttribute('aria-pressed', String(x === pk)));
+      return;
+    }
     const tp = e.target.closest('[data-theme-pick]');
     if (tp) {
       settings.theme = tp.dataset.themePick; store(STORE + '.settings', settings); applyTheme();
