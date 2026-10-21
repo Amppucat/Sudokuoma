@@ -742,7 +742,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     return out;
   }
   const SUBSET_NAMES = { 2: 'pari', 3: 'kolmikko', 4: 'nelikko' };
-  const SUBSET_LEVEL_NAKED = { 2: 2, 3: 2, 4: 3 };
+  const SUBSET_LEVEL_NAKED = { 2: 2, 3: 3, 4: 3 };
   const SUBSET_LEVEL_HIDDEN = { 2: 2, 3: 3, 4: 3 };
 
   function nakedSubset(s, n) {
@@ -813,7 +813,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   T.hidden_4 = s => hiddenSubset(s, 4);
 
   // Basic fish
-  const FISH = { 2: ['X-Wing', 3], 3: ['Swordfish', 4], 4: ['Jellyfish', 4] };
+  const FISH = { 2: ['X-Wing', 3], 3: ['Swordfish', 5], 4: ['Jellyfish', 5] };
   function fish(s, n) {
     for (let d = 1; d <= 9; d++) {
       const b = BIT(d);
@@ -1129,7 +1129,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
       let name = 'Turbot Fish';
       if (t[0] === t[1] && t[0] !== 2) name = 'Skyscraper';
       else if (t[0] !== 2 && t[1] !== 2 && t[0] !== t[1]) name = '2-String Kite';
-      const st = chainStep(s, ch, 'turbot', name + ' (X-ketju)', 3);
+      const st = chainStep(s, ch, 'turbot', name + ' (X-ketju)', 4);
       st.hl.digit = d;
       st.nudge = 'Katso numeroa ' + d + ': kaksi "vain kaksi paikkaa" -linkkiä, joiden päät näkevät toisensa.';
       return st;
@@ -1144,7 +1144,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
       if (ch && (!best || ch.nodes.length < best.nodes.length)) best = ch;
     }
     if (!best) return null;
-    const st = chainStep(s, best, 'x_chain', 'X-ketju', 4);
+    const st = chainStep(s, best, 'x_chain', 'X-ketju', 5);
     st.hl.digit = nodeDig(best.nodes[0]);
     st.nudge = 'Seuraa numeron ' + nodeDig(best.nodes[0]) + ' vahvoja linkkejä (vain kaksi paikkaa) ketjuksi. Aloita ruudusta ' + cellName(nodeCell(best.nodes[0])) + '.';
     return st;
@@ -1153,7 +1153,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   T.xy_chain = function (s) {
     const ch = chainSearch(s, 'xy', 14);
     if (!ch) return null;
-    const st = chainStep(s, ch, 'xy_chain', 'XY-ketju', 4);
+    const st = chainStep(s, ch, 'xy_chain', 'XY-ketju', 5);
     st.nudge = 'Rakenna ketju kaksiehdokkaisista ruuduista. Aloita ruudusta ' + cellName(nodeCell(ch.nodes[0])) + '.';
     return st;
   };
@@ -1167,7 +1167,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     if (c.isX) { name = 'X-ketju'; nudge = 'Seuraa numeron ' + nodeDig(ch.nodes[0]) + ' "vain kaksi paikkaa" -linkkejä ketjuksi. Aloita ruudusta ' + start + '.'; }
     else if (c.isXY) { name = 'XY-ketju'; nudge = 'Rakenna ketju kaksiehdokkaisista ruuduista. Aloita ruudusta ' + start + '.'; }
     else if (c.len === 6 && c.strongTypes[0] === 'cell' && c.strongTypes[1] === 'unit' && c.strongTypes[2] === 'cell') { name = 'W-Wing'; nudge = 'Etsi kaksi samanlaista kaksiehdokasta ruutua, joita yhdistää vahva linkki (W-Wing). Aloita ruudusta ' + start + '.'; }
-    const st = chainStep(s, ch, 'aic_short', name, 4);
+    const st = chainStep(s, ch, 'aic_short', name, 5);
     st.nudge = nudge;
     return st;
   };
@@ -1175,7 +1175,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   T.aic = function (s) {
     const ch = chainSearch(s, 'aic', 16);
     if (!ch) return null;
-    const st = chainStep(s, ch, 'aic', 'AIC-ketju', 5);
+    const st = chainStep(s, ch, 'aic', 'AIC-ketju', 6);
     st.nudge = 'Tarvitaan pidempi vuorotteleva ketju (vahva–heikko–vahva…). Aloita ruudusta ' + cellName(nodeCell(ch.nodes[0])) + ' ja numerosta ' + nodeDig(ch.nodes[0]) + '.';
     return st;
   };
@@ -1183,21 +1183,23 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   // order of techniques (simplest first)
   const ORDER = [
     'full_house', 'hidden_single_box', 'hidden_single_line', 'naked_single',
-    'pointing', 'claiming', 'naked_2', 'hidden_2', 'naked_3',
-    'hidden_3', 'fish_2', 'turbot', 'xy_wing', 'xyz_wing', 'naked_4', 'hidden_4',
+    'pointing', 'claiming', 'naked_2', 'hidden_2',
+    'naked_3', 'hidden_3', 'fish_2', 'xy_wing', 'xyz_wing', 'naked_4', 'hidden_4',
+    'turbot',
     'fish_3', 'aic_short', 'x_chain', 'xy_chain', 'fish_4',
     'aic'
   ];
   const TECH_LEVEL = {
     full_house: 1, hidden_single_box: 1, hidden_single_line: 1, naked_single: 1,
-    pointing: 2, claiming: 2, naked_2: 2, hidden_2: 2, naked_3: 2,
-    hidden_3: 3, fish_2: 3, turbot: 3, xy_wing: 3, xyz_wing: 3, naked_4: 3, hidden_4: 3,
-    fish_3: 4, aic_short: 4, x_chain: 4, xy_chain: 4, fish_4: 4,
-    aic: 5
+    pointing: 2, claiming: 2, naked_2: 2, hidden_2: 2,
+    naked_3: 3, hidden_3: 3, fish_2: 3, xy_wing: 3, xyz_wing: 3, naked_4: 3, hidden_4: 3,
+    turbot: 4,
+    fish_3: 5, aic_short: 5, x_chain: 5, xy_chain: 5, fish_4: 5,
+    aic: 6
   };
 
   function findStep(s, maxLevel) {
-    maxLevel = maxLevel || 5;
+    maxLevel = maxLevel || 6;
     for (const id of ORDER) {
       if (TECH_LEVEL[id] > maxLevel) break;
       const st = T[id](s);
@@ -1262,8 +1264,8 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
       const sol = randomSolution(rnd);
       const stopAt = level === 1 ? 32 + ((rnd() * 4) | 0) : 0;
       const pz = digPuzzle(sol, level, rnd, stopAt);
-      const g = grade(pz, 5);
-      const okExtra = level !== 2 || advancedSteps(g.counts, 2) >= 2;
+      const g = grade(pz, 6);
+      const okExtra = (level !== 2 || advancedSteps(g.counts, 2) >= 2) && (level !== 3 || advancedSteps(g.counts, 3) >= 2);
       if (g.solved && g.level === level && okExtra) {
         return { puzzle: toStr(pz), solution: toStr(sol), level: level, score: g.score, counts: g.counts, tries: t + 1 };
       }
@@ -1287,16 +1289,17 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
 (function () {
   'use strict';
   const E = window.SudokuEngine;
-  const INITIAL = {"1":{"puzzle":"96.3.147.8.7.4...6......2......1638..5.8............69..328.6..4.6.5.9.3.1.63..47","solution":"965321478827945136341768295279516384654893712138472569793284651486157923512639847","level":1},"2":{"puzzle":"7.....8.4.5...4.1....3...7.1.25.......927.4..........3.....5...63..4...74.....65.","solution":"716952834253784916894316572142563798389271465567498123978625341635149287421837659","level":2},"3":{"puzzle":"......7181..9..4......7...5....6....84......7...4.9183..5....21.3...6...2.7..5...","solution":"529643718173958462684172935391867254842531697756429183965784321438216579217395846","level":3},"4":{"puzzle":"..7..1...4932.....8...7..5.....39...9.....7.4...18....5...2...31.2...9....9..36..","solution":"657391842493258167821476359264739581918562734375184296586927413132645978749813625","level":4},"5":{"puzzle":"....34.1.3.5...........62.36...475...9......75..9.3.2...1.9...6...5.8...84.......","solution":"968234715325719468417856293682147539193625847574983621751492386239568174846371952","level":5},"start":{"puzzle":"...8..3.54.1......5....6..9.9....46..1..6.2.....4.......2.1.7....9.43.2......9...","solution":"926874315481395672537126849293581467814967253675432981352618794169743528748259136","level":2}};
+  const INITIAL = {"1":{"puzzle":".36.1....8.5.9...1...85.3.2479.....5..8.2.1.7..1.7.....42..58...13.48.9.6..1.925.","solution":"736412589825693471194857362479381625358926147261574938942765813513248796687139254","level":1},"2":{"puzzle":"1...7......34....96...1...........2..8.54...73.6...8.......7.3..573..9.......45..","solution":"198673452573482169624915783715839624982546317346721895469157238257368941831294576","level":2},"3":{"puzzle":"4.....3.6.1.4......7..3....1.....8...278.9..4..9....5.......5.9.4.9..612..6..2...","solution":"492175386613498725578236941154627893327859164869341257281764539745983612936512478","level":3},"4":{"puzzle":".2.6.8..5.....7.4.7.624....8...2..3..32..6.5..758....14..38....5....4.......6.8..","solution":"924618375318957642756243189849521736132476958675839421461382597587194263293765814","level":4},"5":{"puzzle":".......95....1...3.3..92481.56741.......6...7.8....6.......9..88...7..1.2....4...","solution":"168437295429815763537692481956741832342968157781523649674159328893276514215384976","level":5},"6":{"puzzle":"7...4..1.1..9...6..8.2....3........63......9..6...5.8..45........8.5.2..2....6...","solution":"796543812132978564584261973857139426321684795469725381945812637618357249273496158","level":6},"start":{"puzzle":"...8..3.54.1......5....6..9.9....46..1..6.2.....4.......2.1.7....9.43.2......9...","solution":"926874315481395672537126849293581467814967253675432981352618794169743528748259136","level":2}};
   const { ROW, COL, BOX, PEERS, UNITS } = E;
 
   const LEVELS = {
     1: { name: 'Helppo', desc: 'Pelkät sinkut, paljon valmiita numeroita.' },
     2: { name: 'Keskitaso', desc: 'Lukitut ehdokkaat ja parit.' },
-    3: { name: 'Vaikea', desc: 'Kolmikot, X-Wing, XY-Wing, Skyscraper.' },
-    4: { name: 'Erittäin vaikea', desc: 'Swordfish, W-Wing, X- ja XY-ketjut.' },
-    5: { name: 'Mestari', desc: 'Pitkät vuorottelevat ketjut (AIC).' },
-    6: { name: 'Oma pulma', desc: '' }
+    3: { name: 'Haastava', desc: 'Kolmikot, X-Wing, XY-Wing ja XYZ-Wing. Ei ketjuja.' },
+    4: { name: 'Vaikea', desc: 'Lyhyet X-ketjut: Skyscraper ja 2-String Kite.' },
+    5: { name: 'Erittäin vaikea', desc: 'Swordfish, W-Wing, X- ja XY-ketjut.' },
+    6: { name: 'Mestari', desc: 'Pitkät vuorottelevat ketjut (AIC).' },
+    7: { name: 'Oma pulma', desc: '' }
   };
   const MODES = ['normal', 'corner', 'centre', 'colour'];
   const COLOUR_NAMES = ['harmaa', 'punainen', 'oranssi', 'keltainen', 'vihreä', 'turkoosi', 'sininen', 'violetti', 'pinkki'];
@@ -1380,9 +1383,17 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
 
   const DEFAULT_SETTINGS = { conflicts: true, autoClean: true, sameDigit: true, peers: false, timer: true, theme: 'system', boardBg: '', hlColor: '', candColor: '', penColor: '', tapMode: 'select' };
   let settings = Object.assign({}, DEFAULT_SETTINGS, load(STORE + '.settings', {}));
+  const ALL_LEVELS = [1, 2, 3, 4, 5, 6];
   let stats = load(STORE + '.stats', {});
-  let cache = load(STORE + '.cache', null);
-  if (!cache) { cache = {}; for (const L of [1, 2, 3, 4, 5]) cache[L] = INITIAL[L]; }
+  // one-time move from 5 levels to 6: old 3/4/5 become 4/5/6
+  const MIGRATE6 = !load(STORE + '.lv6', false);
+  if (MIGRATE6) {
+    const ns = {};
+    for (const k in stats) ns[(k === '3' || k === '4' || k === '5') ? String(+k + 1) : k] = stats[k];
+    stats = ns; store(STORE + '.stats', stats); store(STORE + '.lv6', true);
+  }
+  let cache = load(STORE + '.cache6', null);
+  if (!cache) { cache = {}; for (const L of ALL_LEVELS) cache[L] = INITIAL[L]; }
 
   // ---------- game state ----------
   let game = null;
@@ -2034,7 +2045,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     refilling[level] = true;
     genAsync(level).then(r => {
       refilling[level] = false;
-      if (r) { cache[level] = { puzzle: r.puzzle, solution: r.solution, level: level }; store(STORE + '.cache', cache); }
+      if (r) { cache[level] = { puzzle: r.puzzle, solution: r.solution, level: level }; store(STORE + '.cache6', cache); }
     });
   }
 
@@ -2048,7 +2059,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   async function newGame(level) {
     closeSheet();
     if (cache[level]) {
-      const p = cache[level]; cache[level] = null; store(STORE + '.cache', cache);
+      const p = cache[level]; cache[level] = null; store(STORE + '.cache6', cache);
       startGame(p); refill(level); return;
     }
     generating = true; closeHint();
@@ -2062,7 +2073,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   function updateHeader() {
     const el = document.getElementById('level-name');
     if (!game) { el.textContent = ''; return; }
-    el.textContent = game.custom ? 'Oma pulma · ' + (game.level <= 5 ? LEVELS[game.level].name : 'yli Mestarin') : LEVELS[game.level].name;
+    el.textContent = game.custom ? 'Oma pulma · ' + (game.level <= 6 ? LEVELS[game.level].name : 'yli Mestarin') : LEVELS[game.level].name;
   }
 
   // ---------- hints ----------
@@ -2088,7 +2099,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     const learned = [];
     for (let guard = 0; guard < 400; guard++) {
       if (E.isSolved(s)) return { kind: 'solved' };
-      const st = E.findStep(s, 5);
+      const st = E.findStep(s, 6);
       if (!st) return { kind: 'stuck', learned };
       if (!st.place && st.elim.length && st.elim.every(([i, d]) => game.centre[i] && !(game.centre[i] & (1 << (d - 1))))) {
         // the player has already made this elimination in their centre marks
@@ -2248,10 +2259,10 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
 
   function openNew() {
     let html = head('Uusi pulma') + '<div class="levels">';
-    for (const L of [1, 2, 3, 4, 5]) {
+    for (const L of ALL_LEVELS) {
       const st = stats[L];
       let pips = '<span class="pips" aria-hidden="true">';
-      for (let k = 1; k <= 5; k++) pips += '<span class="pip' + (k <= L ? ' on' : '') + '"></span>';
+      for (let k = 1; k <= 6; k++) pips += '<span class="pip' + (k <= L ? ' on' : '') + '"></span>';
       pips += '</span>';
       html += '<button class="level-btn" data-level="' + L + '">' + pips +
         '<span><span class="lv-name">' + LEVELS[L].name + '</span><span class="lv-desc">' + LEVELS[L].desc + '</span></span>' +
@@ -2274,9 +2285,9 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     const n = E.countSolutions(g, 2, sol);
     if (n === 0) { msg.textContent = 'Pulmalla ei ole ratkaisua. Tarkista numerot.'; return; }
     if (n > 1) { msg.textContent = 'Pulmalla on useampi ratkaisu, joten sitä ei voi ratkaista logiikalla.'; return; }
-    const gr = E.grade(g, 5);
+    const gr = E.grade(g, 6);
     closeSheet();
-    startGame({ puzzle: txt, solution: E.toStr(sol), level: gr.solved ? gr.level : 6, custom: true });
+    startGame({ puzzle: txt, solution: E.toStr(sol), level: gr.solved ? gr.level : 7, custom: true });
     flash('Pulma tuotu: ' + (gr.solved ? LEVELS[gr.level].name : 'vaikeampi kuin Mestari'));
   }
 
@@ -2375,7 +2386,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     }
     else if (act === 'clear-marks') { closeSheet(); commit(() => { game.corner.fill(0); game.centre.fill(0); return true; }); }
     else if (act === 'clear-colours') { closeSheet(); commit(() => { game.colours = game.colours.map(() => []); return true; }); }
-    else if (act === 'win-same') newGame(game.level <= 5 && !game.custom ? game.level : 2);
+    else if (act === 'win-same') newGame(game.level <= 6 && !game.custom ? game.level : 2);
     else if (act === 'win-choose') openNew();
   });
   function openWin(isBest) {
@@ -2399,12 +2410,17 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     const savedGame = (data && data.game) || load(STORE + '.game', null);
     if (savedGame && savedGame.puzzle) {
       try { game = deserialize(savedGame); } catch (e) { game = null; }
+      if (game && MIGRATE6) {
+        if (game.custom) { const gr = E.grade(E.fromStr(game.puzzle), 6); game.level = gr.solved ? gr.level : 7; }
+        else if (game.level >= 3 && game.level <= 5) game.level++;
+        save();
+      }
     }
     if (!game) game = newGameState(INITIAL.start);
     if (data && data.sel) sel = new Set(data.sel);
     updateHeader(); render(); updatePad(); updateTimer();
     initWorker();
-    setTimeout(() => { for (const L of [1, 2, 3, 4, 5]) refill(L); }, 1500);
+    setTimeout(() => { for (const L of ALL_LEVELS) refill(L); }, 1500);
   }
   const hot = window.claude && window.claude.hot;
   if (hot && typeof hot.snapshot === 'function') {
