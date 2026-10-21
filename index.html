@@ -49,7 +49,7 @@ img { max-width: 100%; }
   --c6: #8fd0d4; --c7: #9db6f0; --c8: #c3a7ea; --c9: #f0abd1;
   --font-digit: 'Libre Franklin', 'Franklin Gothic Medium', Arial, sans-serif;
   --font-ui: 'Libre Franklin', 'Franklin Gothic Book', Arial, sans-serif;
-  --key-h: clamp(44px, 7.2dvh, 64px);
+  --key-h: clamp(42px, 7dvh, 62px);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -102,13 +102,13 @@ button:focus-visible, [tabindex]:focus-visible, select:focus-visible, textarea:f
   padding-block: 10px 14px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  --board: max(260px, min(100vw - 32px, 100dvh - 426px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 620px));
+  --board: max(260px, min(100vw - 6px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px), 100dvh - 196px - 3 * var(--key-h) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 720px));
 }
 
 /* ---------- top bar ---------- */
 .bar {
   width: 100%;
-  max-width: max(var(--board), 360px);
+  max-width: max(min(var(--board), 100%), 360px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -147,7 +147,7 @@ button:focus-visible, [tabindex]:focus-visible, select:focus-visible, textarea:f
   position: relative;
   width: var(--board);
   aspect-ratio: 1;
-  max-width: 100%;
+  max-width: none;
   flex: none;
 }
 #board {
@@ -351,7 +351,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
 
 /* ---------- wide screens ---------- */
 @media (min-width: 840px) and (orientation: landscape) {
-  .app { --board: max(300px, min(100dvh - 110px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 100vw - 460px, 760px)); padding-block: 16px; }
+  .app { --board: max(300px, min(100dvh - 86px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px), 100vw - 410px)); padding-block: 12px; }
   .bar { max-width: calc(var(--board) + 380px); }
   .play { flex-direction: row; align-items: flex-start; justify-content: center; gap: 28px; }
   .controls { width: 340px; min-width: 0; flex: none; }
@@ -390,7 +390,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
 
   <main class="play">
     <div class="board-wrap" id="board-wrap">
-      <svg id="board" viewBox="-8 -8 916 916" tabindex="0" role="grid" aria-label="Sudokuruudukko"></svg>
+      <svg id="board" viewBox="-3 -3 906 906" tabindex="0" role="grid" aria-label="Sudokuruudukko"></svg>
       <div class="board-cover" id="cover" hidden></div>
       <div class="toast" id="toast" hidden></div>
     </div>
@@ -1551,7 +1551,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
     if (!game) { svg.innerHTML = '<rect class="paper" x="0" y="0" width="900" height="900"/>'; return; }
     const o = [];
     o.push('<defs><clipPath id="cc"><rect x="0" y="0" width="100" height="100"/></clipPath></defs>');
-    o.push('<rect class="paper" x="-8" y="-8" width="916" height="916"/>');
+    o.push('<rect class="paper" x="-3" y="-3" width="906" height="906"/>');
     const ov = hint && hint.stage >= 2 ? hint.overlay : null;
     const single = sel.size === 1 ? [...sel][0] : -1;
     const selDigit = (single >= 0 && settings.sameDigit ? digitAt(single) : 0) || hlDigit;
@@ -1785,7 +1785,7 @@ select { border: 1px solid var(--line); background: var(--surface); color: var(-
   let lastTap = { t: 0, cell: -1 };
   function cellFromPoint(clientX, clientY, strict) {
     const r = svg.getBoundingClientRect();
-    const ux = (clientX - r.left) / r.width * 916 - 8, uy = (clientY - r.top) / r.height * 916 - 8;
+    const ux = (clientX - r.left) / r.width * 906 - 3, uy = (clientY - r.top) / r.height * 906 - 3;
     if (ux < 0 || uy < 0 || ux >= 900 || uy >= 900) return -1;
     const c = Math.floor(ux / R), rr = Math.floor(uy / R);
     if (strict) {
